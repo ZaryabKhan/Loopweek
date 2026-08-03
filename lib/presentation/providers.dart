@@ -37,8 +37,7 @@ final homeWidgetServiceProvider = Provider<HomeWidgetService>(
 /// Single observer-based controller, exposed as [ChangeNotifierProvider] for
 /// simple synchronous reads + reactive theme rebuilds. The framework
 /// auto-disposes the ChangeNotifier; we therefore only need to prime it.
-final settingsProvider =
-    ChangeNotifierProvider<ActiveSettings>((ref) {
+final settingsProvider = ChangeNotifierProvider<ActiveSettings>((ref) {
   final notifier = ActiveSettings(ref);
   notifier.load();
   return notifier;
@@ -50,6 +49,8 @@ class ActiveSettings extends ChangeNotifier {
 
   ColorTag colorTag = ColorTag.defaultValue;
   ThemeMode themeMode = ThemeMode.system;
+  bool onboardingSeen = false;
+  bool longPressHintSeen = false;
   bool isLoaded = false;
   bool _disposed = false;
 
@@ -68,6 +69,8 @@ class ActiveSettings extends ChangeNotifier {
     final service = SettingsService(sp);
     colorTag = service.colorTag;
     themeMode = service.themeMode;
+    onboardingSeen = service.onboardingSeen;
+    longPressHintSeen = service.longPressHintSeen;
     isLoaded = true;
     _notify();
   }
@@ -85,6 +88,22 @@ class ActiveSettings extends ChangeNotifier {
     if (sp == null) return;
     await SettingsService(sp).setThemeMode(mode);
     themeMode = mode;
+    _notify();
+  }
+
+  Future<void> setOnboardingSeen() async {
+    final sp = _ref.read(sharedPreferencesProvider).valueOrNull;
+    if (sp == null) return;
+    await SettingsService(sp).setOnboardingSeen();
+    onboardingSeen = true;
+    _notify();
+  }
+
+  Future<void> setLongPressHintSeen() async {
+    final sp = _ref.read(sharedPreferencesProvider).valueOrNull;
+    if (sp == null) return;
+    await SettingsService(sp).setLongPressHintSeen();
+    longPressHintSeen = true;
     _notify();
   }
 

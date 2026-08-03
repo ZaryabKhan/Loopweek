@@ -14,6 +14,8 @@ class SettingsService {
 
   static const _kColorTag = 'settings.colorTag';
   static const _kThemeMode = 'settings.themeMode';
+  static const _kOnboardingSeen = 'onboarding.seen';
+  static const _kLongPressHintSeen = 'onboarding.longPressHintSeen';
 
   ColorTag get colorTag => ColorTag.fromName(_prefs.getString(_kColorTag));
   Future<void> setColorTag(ColorTag tag) =>
@@ -35,8 +37,18 @@ class SettingsService {
     final value = mode == ThemeMode.light
         ? 'light'
         : mode == ThemeMode.dark
-            ? 'dark'
-            : 'system';
+        ? 'dark'
+        : 'system';
     return _prefs.setString(_kThemeMode, value);
   }
+
+  /// Whether the first-run welcome sheet has been shown (and dismissed).
+  bool get onboardingSeen => _prefs.getBool(_kOnboardingSeen) ?? false;
+  Future<void> setOnboardingSeen() => _prefs.setBool(_kOnboardingSeen, true);
+
+  /// Whether the one-time "hold a task" hint has been dismissed or made
+  /// redundant by the user discovering the long-press gesture.
+  bool get longPressHintSeen => _prefs.getBool(_kLongPressHintSeen) ?? false;
+  Future<void> setLongPressHintSeen() =>
+      _prefs.setBool(_kLongPressHintSeen, true);
 }

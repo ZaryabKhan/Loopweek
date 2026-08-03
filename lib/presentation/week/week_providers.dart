@@ -16,24 +16,33 @@ List<DateTime> weekDatesFor(DateTime anchor) {
 /// Today's date, midnight-truncated. Provided as a ProviderArg so tests can
 /// override; UI reads it through [todayProvider].
 final todayProvider = StateProvider<DateTime>(
-  (_) => DateTime(
-    DateTime.now().year,
-    DateTime.now().month,
-    DateTime.now().day,
-  ),
+  (_) =>
+      DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
 );
 
 /// The 7 days shown on the main week view.
-final weekDatesProvider =
-    Provider<List<DateTime>>((ref) => weekDatesFor(ref.watch(todayProvider)));
+final weekDatesProvider = Provider<List<DateTime>>(
+  (ref) => weekDatesFor(ref.watch(todayProvider)),
+);
 
 /// Stream of tasks for a given date, sorted by [sortOrder] then title.
-final tasksForDateProvider =
-    StreamProvider.family<List<Task>, DateTime>((ref, date) {
+final tasksForDateProvider = StreamProvider.family<List<Task>, DateTime>((
+  ref,
+  date,
+) {
   return ref.watch(taskRepositoryProvider).watchTasksForDate(date);
 });
 
 /// Tracks which day-section is currently expanded (accordion, single-open).
 final expandedDayProvider = StateProvider<DateTime?>((ref) {
   return ref.watch(todayProvider);
+});
+
+/// Whether the database holds any task at all. Drives the first-task
+/// orientation shown on an empty week.
+final hasAnyTasksProvider = StreamProvider<bool>((ref) {
+  return ref
+      .watch(taskRepositoryProvider)
+      .watchTaskCount()
+      .map((count) => count > 0);
 });

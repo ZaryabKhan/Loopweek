@@ -173,7 +173,12 @@ class _DaySectionState extends ConsumerState<_DaySection> {
         ),
         // Note: no Slide/ClipRect — we just conditionally render body so the
         // accordion collapses cleanly under the divider.
-        if (widget.isExpanded) _Body(date: widget.date, accent: widget.accent),
+        if (widget.isExpanded)
+          _Body(
+            date: widget.date,
+            isToday: widget.isToday,
+            accent: widget.accent,
+          ),
       ],
     );
   }
@@ -194,8 +199,13 @@ class _DaySectionState extends ConsumerState<_DaySection> {
 }
 
 class _Body extends ConsumerWidget {
-  const _Body({required this.date, required this.accent});
+  const _Body({
+    required this.date,
+    required this.isToday,
+    required this.accent,
+  });
   final DateTime date;
+  final bool isToday;
   final Color accent;
 
   @override
@@ -203,12 +213,22 @@ class _Body extends ConsumerWidget {
     final asyncTasks = ref.watch(tasksForDateProvider(date));
     final repo = ref.watch(taskRepositoryProvider);
     final widgetSvc = ref.watch(homeWidgetServiceProvider);
-    final accentTag = ref.watch(settingsProvider).colorTag;
+    final settings = ref.watch(settingsProvider);
+    final accentTag = settings.colorTag;
+    // While the count loads, assume a populated week so the orientation never
+    // flashes on a returning user's screen.
+    final hasAnyTasks = ref.watch(hasAnyTasksProvider).valueOrNull ?? true;
 
     return asyncTasks.maybeWhen(
       data: (tasks) {
         if (tasks.isEmpty) {
-          return _AddRow(date: date, accent: accent);
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (isToday && !hasAnyTasks) const _FirstTaskOrientation(),
+              _AddRow(date: date, accent: accent),
+            ],
+          );
         }
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -239,6 +259,7 @@ class _Body extends ConsumerWidget {
                 },
                 onLongPress: () => _showQuickActions(context, ref, t.id),
               ),
+            if (!settings.longPressHintSeen) const _LongPressHint(),
             _AddRow(date: date, accent: accent),
           ],
         );
@@ -251,6 +272,8 @@ class _Body extends ConsumerWidget {
     final theme = Theme.of(context);
     final repo = ref.read(taskRepositoryProvider);
     final accentTag = ref.read(settingsProvider).colorTag;
+    // The long-press gesture was just used — the hint has done its job.
+    ref.read(settingsProvider).setLongPressHintSeen();
     showModalBottomSheet<void>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -355,6 +378,73 @@ class _AddRow extends StatelessWidget {
           bottom: MediaQuery.of(context).viewInsets.bottom,
         ),
         child: TaskEditSheet(date: date),
+      ),
+    );
+  }
+}
+
+/// Shown in today's expanded section when the whole week is empty: what will
+/// be here and how to start. The add row directly below is the action.
+class _FirstTaskOrientation extends StatelessWidget {
+  const _FirstTaskOrientation();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Nothing here yet.',
+            style: theme.textTheme.titleSmall?.copyWith(
+              color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Add your first task below. It stays on its day until you move it.',
+            style: theme.textTheme.bodySmall,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One-time inline hint for the undiscoverable gesture. Disappears forever
+/// once tapped, or as soon as the user long-presses any task.
+class _LongPressHint extends ConsumerWidget {
+  const _LongPressHint();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: 'Hold a task to remove it. Activate to dismiss this hint.',
+      child: InkWell(
+        onTap: () => ref.read(settingsProvider).setLongPressHintSeen(),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
+          child: Row(
+            children: [
+              Icon(
+                Icons.pan_tool_outlined,
+                size: 16,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'Hold a task to remove it.',
+                  style: theme.textTheme.bodySmall,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

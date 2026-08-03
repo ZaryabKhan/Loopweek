@@ -9,6 +9,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:loopweek/data/database/database.dart';
+import 'package:loopweek/presentation/onboarding/welcome_sheet.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
 
@@ -62,9 +63,11 @@ class LoopweekApp extends ConsumerWidget {
       theme: settings.lightTheme(),
       darkTheme: settings.darkTheme(),
       themeMode: settings.themeMode,
-      home: KeyedSubtree(
-        key: ValueKey(settings.colorTag),
-        child: const WeekView(),
+      home: OnboardingGate(
+        child: KeyedSubtree(
+          key: ValueKey(settings.colorTag),
+          child: const WeekView(),
+        ),
       ),
     );
   }

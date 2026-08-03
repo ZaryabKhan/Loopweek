@@ -22,15 +22,22 @@ class TaskRepository {
     final end = start.add(const Duration(days: 1));
     final query = _db.select(_db.tasks)
       ..where((t) => t.date.isBetweenValues(start, end))
-      ..orderBy([(t) => OrderingTerm.asc(t.sortOrder), (t) => OrderingTerm.asc(t.title)]);
+      ..orderBy([
+        (t) => OrderingTerm.asc(t.sortOrder),
+        (t) => OrderingTerm.asc(t.title),
+      ]);
     return query.map(_mapper.toDomain).watch();
   }
 
   Stream<Task?> watchTask(String id) {
     final query = _db.select(_db.tasks)..where((t) => t.id.equals(id));
-    return query
-        .map(_mapper.toDomain)
-        .watchSingleOrNull();
+    return query.map(_mapper.toDomain).watchSingleOrNull();
+  }
+
+  /// Live count of all tasks, used by the week view to tell a fresh install
+  /// (show the first-task orientation) apart from a populated week.
+  Stream<int> watchTaskCount() {
+    return _db.select(_db.tasks).watch().map((rows) => rows.length);
   }
 
   Future<Task?> getTask(String id) async {
@@ -43,7 +50,9 @@ class TaskRepository {
 
   Future<Task> insertTask(Task task) async {
     final withId = task.id.isEmpty ? task.copyWith(id: _uuid.v4()) : task;
-    await _db.into(_db.tasks).insertOnConflictUpdate(_mapper.toCompanion(withId));
+    await _db
+        .into(_db.tasks)
+        .insertOnConflictUpdate(_mapper.toCompanion(withId));
     return withId;
   }
 
@@ -59,8 +68,9 @@ class TaskRepository {
     required String id,
     required bool completed,
   }) async {
-    await (_db.update(_db.tasks)..where((t) => t.id.equals(id)))
-        .write(TasksCompanion(isCompleted: Value(completed)));
+    await (_db.update(_db.tasks)..where((t) => t.id.equals(id))).write(
+      TasksCompanion(isCompleted: Value(completed)),
+    );
   }
 
   Future<void> reorderTasksForDate({
@@ -95,16 +105,16 @@ class TaskRepository {
     if (dates.isEmpty) return const [];
 
     // Skip dates that already have an occurrence for this rule.
-    final existing =
-        await (_db.select(_db.tasks)
-              ..where((t) => t.recurrenceParentId.equals(rule.id)))
-            .get();
+    final existing = await (_db.select(
+      _db.tasks,
+    )..where((t) => t.recurrenceParentId.equals(rule.id))).get();
     final existingDates = existing.map((e) => e.date).toSet();
 
     final created = <Task>[];
     for (final d in dates) {
-      if (existingDates.any((e) =>
-          e.year == d.year && e.month == d.month && e.day == d.day)) {
+      if (existingDates.any(
+        (e) => e.year == d.year && e.month == d.month && e.day == d.day,
+      )) {
         continue;
       }
       final occurrence = rule.copyWith(
@@ -124,9 +134,12 @@ class TaskRepository {
   /// Stop future recurrence of the rule with [parentId] without touching
   /// generated history. Concretely: splits the source rule into a non-recurring
   /// anchor row going forward, by marking its recurrence as [Recurrence.never].
-  Future<void> stopRecurrenceAfter(String parentId,
-      {required DateTime todayDate}) async {
-    await (_db.update(_db.tasks)..where((t) => t.id.equals(parentId)))
-        .write(TasksCompanion(recurrence: Value(Recurrence.never.name)));
+  Future<void> stopRecurrenceAfter(
+    String parentId, {
+    required DateTime todayDate,
+  }) async {
+    await (_db.update(_db.tasks)..where((t) => t.id.equals(parentId))).write(
+      TasksCompanion(recurrence: Value(Recurrence.never.name)),
+    );
   }
 }

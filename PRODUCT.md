@@ -51,6 +51,7 @@ An original, clean-room implementation of the "one screen, seven days" concept. 
 - Optional reminders; notification permission is requested only when the user actually switches a reminder on — never at startup.
 - Home-screen widget: medium size shows today + up to 5 tasks (incomplete prioritized); large size shows up to 10 tasks, or today + tomorrow when today is sparse. Widget uses the user's selected accent color.
 - Interaction model is tap and long-press only (long-press to remove or reorder). No swipe gestures.
+- First run: one skippable welcome sheet (value prop, the three gestures, live accent pick) shown once and persisted via shared_preferences; an empty week shows a first-task orientation, and a one-time "hold a task" hint retires once the gesture is used or dismissed.
 
 ### Out of scope (hard)
 No cloud sync, no accounts or login, no calendar/month view, no subtasks, no tags or projects beyond the 4 color tags, no priority levels beyond color, no AI features, no ads, no analytics, no in-app purchases.
