@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="14dp"
+    android:background="#FFF2F2F2">
+
+    <TextView
+        android:id="@+id/widget_header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginBottom="10dp"
+        android:layout_marginTop="2dp"
+        android:text="TODAY"
+        android:textSize="13sp"
+        android:textStyle="bold"
+        android:letterSpacing="0.1"
+        android:textColor="#FFF4511E" />
+
+    <TextView
+        android:id="@+id/widget_row1"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+    <TextView
+        android:id="@+id/widget_row2"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+    <TextView
+        android:id="@+id/widget_row3"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+    <TextView
+        android:id="@+id/widget_row4"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+    <TextView
+        android:id="@+id/widget_row5"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+    <TextView
+        android:id="@+id/widget_row6"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+    <TextView
+        android:id="@+id/widget_row7"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+    <TextView
+        android:id="@+id/widget_row8"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+    <TextView
+        android:id="@+id/widget_row9"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+    <TextView
+        android:id="@+id/widget_row10"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:paddingTop="5dp"
+        android:paddingBottom="5dp"
+        android:textSize="14sp"
+        android:textColor="#FF212121" />
+
+</LinearLayout>
