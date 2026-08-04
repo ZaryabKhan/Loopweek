@@ -68,7 +68,7 @@ No cloud sync, no accounts or login, no calendar/month view, no subtasks, no tag
 - `README.md` — full setup, architecture, recurrence-risk, privacy, and home-widget description.
 - `docs/Loopweek product spec.md` — the complete original project brief handed to the implementation.
 - `CONTRIBUTING.md`, `LICENSE` (MIT) — present and public-repo-ready.
-- No logo or named brand asset is provided in-repo; future work must not fabricate one.
+- Brand mark: an original seven-segment open-loop mark (see `DESIGN.md`, `docs/brand/generate_logo.py`). No third-party brand, asset, or trademark is used.
 - No testimonials, customers, benchmarks, pricing, or deployment evidence exists; future work must not invent any.
 
 ## Product Principles
