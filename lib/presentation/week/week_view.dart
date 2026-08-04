@@ -111,17 +111,6 @@ class _TopBar extends StatelessWidget {
               ],
             ),
           ),
-          // Locale is surfaced as a visual affordance only — looping the week
-          // view locale is not a feature yet, so this is not a tappable
-          // control (no false affordance).
-          Padding(
-            padding: const EdgeInsets.only(right: 4),
-            child: Icon(
-              Icons.flag_outlined,
-              size: 22,
-              color: theme.colorScheme.onSurface.withValues(alpha: 0.45),
-            ),
-          ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
             tooltip: 'Settings',
