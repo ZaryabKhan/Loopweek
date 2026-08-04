@@ -188,9 +188,9 @@ class _DaySectionState extends ConsumerState<_DaySection> {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
+      builder: (sheetContext) => Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
         ),
         child: TaskEditSheet(date: widget.date),
       ),
@@ -246,9 +246,9 @@ class _Body extends ConsumerWidget {
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
-                    builder: (_) => Padding(
+                    builder: (sheetContext) => Padding(
                       padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(context).viewInsets.bottom,
+                        bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
                       ),
                       child: TaskEditSheet(task: t, date: date),
                     ),
@@ -373,9 +373,9 @@ class _AddRow extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => Padding(
+      builder: (sheetContext) => Padding(
         padding: EdgeInsets.only(
-          bottom: MediaQuery.of(context).viewInsets.bottom,
+          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
         ),
         child: TaskEditSheet(date: date),
       ),
