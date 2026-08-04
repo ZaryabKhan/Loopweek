@@ -46,6 +46,14 @@ class TaskRepository {
     return row == null ? null : _mapper.toDomain(row);
   }
 
+  /// All materialized occurrences linked back to the rule with [parentId].
+  Future<List<Task>> getOccurrencesOf(String parentId) async {
+    final rows = await (_db.select(
+      _db.tasks,
+    )..where((t) => t.recurrenceParentId.equals(parentId))).get();
+    return rows.map(_mapper.toDomain).toList();
+  }
+
   // ---- write --------------------------------------------------------------
 
   Future<Task> insertTask(Task task) async {

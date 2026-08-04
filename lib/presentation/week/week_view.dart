@@ -306,6 +306,10 @@ class _Body extends ConsumerWidget {
                 title: const Text('Remove task'),
                 onTap: () async {
                   await repo.deleteTask(id);
+                  // Drop any pending reminder for the removed task.
+                  await ref
+                      .read(notificationServiceProvider)
+                      .cancelTaskReminder(id);
                   await ref
                       .read(homeWidgetServiceProvider)
                       .pushTodaySnapshot(accent: accentTag);

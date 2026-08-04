@@ -376,6 +376,16 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
     return base.subtract(Duration(days: _reminderOffsetDays));
   }
 
+  /// Fire time for a materialized occurrence: its own date + time, falling
+  /// back to 09:00 for time-less tasks (same fallback as [_fireDateTime]).
+  DateTime _occurrenceFire(Task occurrence) {
+    final d = occurrence.date;
+    final t = occurrence.time;
+    return t == null
+        ? DateTime(d.year, d.month, d.day, 9)
+        : DateTime(d.year, d.month, d.day, t.hour, t.minute);
+  }
+
   Future<void> _toggleReminder(bool v) async {
     if (!v) {
       setState(() => _hasReminder = false);
@@ -452,13 +462,17 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
 
     // If recurring, materialize occurrences across a generous forward window
     // so the rest of the week view is populated immediately.
+    var occurrences = const <Task>[];
     if (saved.recurrence.isRecurring) {
       final today = ref.read(todayProvider);
       final end = today.add(const Duration(days: 365));
       await repo.materializeOccurrences(rule: saved, start: today, end: end);
+      // Re-schedule reminders for every occurrence (existing + just-created),
+      // since each is an independent row with its own notification id.
+      occurrences = await repo.getOccurrencesOf(saved.id);
     }
 
-    if (saved.hasReminder && saved.hasTime) {
+    if (saved.hasReminder) {
       final fire = _fireDateTime();
       if (fire != null) {
         await notif.scheduleTaskReminder(
@@ -467,7 +481,18 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
           scheduled: fire,
         );
       }
-    } else if (widget.task != null && !_hasReminder) {
+      // Each recurring occurrence is an independent row with its own id, so
+      // each one needs its own scheduled reminder. The service skips past
+      // fire times.
+      for (final occurrence in occurrences) {
+        if (!occurrence.hasReminder) continue;
+        await notif.scheduleTaskReminder(
+          taskId: occurrence.id,
+          title: occurrence.title,
+          scheduled: _occurrenceFire(occurrence),
+        );
+      }
+    } else if (widget.task != null) {
       await notif.cancelTaskReminder(widget.task!.id);
     }
 
