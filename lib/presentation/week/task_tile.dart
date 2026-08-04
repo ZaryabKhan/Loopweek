@@ -112,8 +112,6 @@ class _Checkbox extends StatelessWidget {
   final Color accent;
   final VoidCallback onTap;
 
-  GestureTapCallback? get onToggle => null;
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -123,7 +121,7 @@ class _Checkbox extends StatelessWidget {
     // Opaque hit-test consumes the tap so the row's edit action is not fired.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onToggle,
+      onTap: onTap,
       child: SizedBox(
         width: 48,
         height: 48,
