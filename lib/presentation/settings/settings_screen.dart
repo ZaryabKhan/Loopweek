@@ -36,18 +36,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   void _onGestureTap() {
-    setState(() {
-      _gestureTapCount += 1;
-    });
+    _gestureTapCount += 1;
     _gestureTapTimer?.cancel();
     // Reset the count if the user stops tapping within this window.
     _gestureTapTimer = Timer(const Duration(milliseconds: 1000), () {
-      setState(() => _gestureTapCount = 0);
+      _gestureTapCount = 0;
     });
 
     if (_gestureTapCount >= 7) {
       _gestureTapTimer?.cancel();
-      setState(() => _gestureTapCount = 0);
+      _gestureTapCount = 0;
+      ScaffoldMessenger.of(context).removeCurrentSnackBar();
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          duration: Duration(milliseconds: 600),
+          content: Text('Testing mode: dummy data for all 7 days.'),
+        ),
+      );
       _showTestingModeDialog();
     }
   }
@@ -140,9 +145,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 8),
             const _WidgetPreview(),
             const SizedBox(height: 24),
-            _LabelRow('Gestures'),
-            const SizedBox(height: 8),
-            _GestureField(tapCount: _gestureTapCount, onTap: _onGestureTap),
+            _LabelRow('Gestures', onTap: _onGestureTap),
             const SizedBox(height: 8),
             Text(
               'Hold to remove tasks or reorder by time and priority.',
@@ -158,21 +161,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 }
 
 class _LabelRow extends StatelessWidget {
-  const _LabelRow(this.text);
+  const _LabelRow(this.text, {this.onTap});
   final String text;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final child = Text(
+      text.toUpperCase(),
+      style: theme.textTheme.titleSmall?.copyWith(
+        letterSpacing: 1.0,
+        color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
+      ),
+    );
+    if (onTap == null) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: 4),
+        child: child,
+      );
+    }
+    // Invisible hit target: the heading looks static but is tappable, so the
+    // hidden gesture count stays undiscoverable to regular users.
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Text(
-        text.toUpperCase(),
-        style: theme.textTheme.titleSmall?.copyWith(
-          letterSpacing: 1.0,
-          color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
-        ),
-      ),
+      child: GestureDetector(onTap: onTap, child: child),
     );
   }
 }
@@ -417,39 +430,6 @@ class _WidgetPreview extends ConsumerWidget {
               ),
             ),
         ],
-      ),
-    );
-  }
-}
-
-class _GestureField extends StatelessWidget {
-  const _GestureField({required this.tapCount, required this.onTap});
-
-  final int tapCount;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final label = tapCount > 0 ? '$tapCount / 7' : 'Gestures';
-    return Material(
-      type: MaterialType.button,
-      borderRadius: BorderRadius.circular(12),
-      color: theme.cardTheme.color,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
-          child: Row(
-            children: [
-              const Icon(Icons.gesture_outlined, size: 20),
-              const SizedBox(width: 10),
-              Text(label, style: theme.textTheme.titleMedium),
-              const Spacer(),
-            ],
-          ),
-        ),
       ),
     );
   }
