@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
 import 'package:loopweek/presentation/providers.dart';
+import 'package:loopweek/presentation/settings/dummy_data.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
 import 'package:loopweek/presentation/widgets/accent_segmented.dart';
@@ -23,6 +26,81 @@ class SettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
+  int _gestureTapCount = 0;
+  Timer? _gestureTapTimer;
+
+  @override
+  void dispose() {
+    _gestureTapTimer?.cancel();
+    super.dispose();
+  }
+
+  void _onGestureTap() {
+    setState(() {
+      _gestureTapCount += 1;
+    });
+    _gestureTapTimer?.cancel();
+    // Reset the count if the user stops tapping within this window.
+    _gestureTapTimer = Timer(const Duration(milliseconds: 1000), () {
+      setState(() => _gestureTapCount = 0);
+    });
+
+    if (_gestureTapCount >= 7) {
+      _gestureTapTimer?.cancel();
+      setState(() => _gestureTapCount = 0);
+      _showTestingModeDialog();
+    }
+  }
+
+  void _showTestingModeDialog() {
+    showDialog(
+      context: context,
+      barrierDismissible: true,
+      builder: (dialogContext) => AlertDialog(
+        title: const Text('Testing mode'),
+        content: const Text(
+          'This will add dummy data to all 7 days and replace any existing '
+          'data. This action cannot be undone.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(dialogContext).pop(),
+            child: const Text('No'),
+          ),
+          TextButton(
+            onPressed: () async {
+              Navigator.of(dialogContext).pop();
+              await _populateDummyData();
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Dummy data populated for this week.'),
+                  ),
+                );
+              }
+            },
+            child: const Text('Yes'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _populateDummyData() async {
+    final repo = ref.read(taskRepositoryProvider);
+    final today = ref.read(todayProvider);
+    await repo.clearAllTasks();
+    final tasks = buildDummyTasksForWeek(today);
+    await repo.insertTaskBatch(tasks);
+    final settings = ref.read(settingsProvider);
+    await ref
+        .read(homeWidgetServiceProvider)
+        .pushTodaySnapshot(
+          accent: settings.colorTag,
+          themeMode: settings.themeMode,
+        );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -63,6 +141,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const _WidgetPreview(),
             const SizedBox(height: 24),
             _LabelRow('Gestures'),
+            const SizedBox(height: 8),
+            _GestureField(tapCount: _gestureTapCount, onTap: _onGestureTap),
             const SizedBox(height: 8),
             Text(
               'Hold to remove tasks or reorder by time and priority.',
@@ -114,10 +194,11 @@ class _ColorSwatch extends ConsumerWidget {
           children: [
             InkWell(
               onTap: () async {
+                final themeMode = active.themeMode;
                 await active.setColorTag(tag);
                 await ref
                     .read(homeWidgetServiceProvider)
-                    .pushTodaySnapshot(accent: tag);
+                    .pushTodaySnapshot(accent: tag, themeMode: themeMode);
               },
               customBorder: const CircleBorder(),
               child: Container(
@@ -169,7 +250,13 @@ class _ThemeSelector extends ConsumerWidget {
         ThemeMode.light => 'Light',
         ThemeMode.dark => 'Dark',
       },
-      onChanged: (mode) => active.setThemeMode(mode),
+      onChanged: (mode) async {
+        // The widget receives the raw mode; "system" is resolved natively.
+        await active.setThemeMode(mode);
+        await ref
+            .read(homeWidgetServiceProvider)
+            .pushTodaySnapshot(accent: active.colorTag, themeMode: mode);
+      },
     );
   }
 }
@@ -330,6 +417,39 @@ class _WidgetPreview extends ConsumerWidget {
               ),
             ),
         ],
+      ),
+    );
+  }
+}
+
+class _GestureField extends StatelessWidget {
+  const _GestureField({required this.tapCount, required this.onTap});
+
+  final int tapCount;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final label = tapCount > 0 ? '$tapCount / 7' : 'Gestures';
+    return Material(
+      type: MaterialType.button,
+      borderRadius: BorderRadius.circular(12),
+      color: theme.cardTheme.color,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+          child: Row(
+            children: [
+              const Icon(Icons.gesture_outlined, size: 20),
+              const SizedBox(width: 10),
+              Text(label, style: theme.textTheme.titleMedium),
+              const Spacer(),
+            ],
+          ),
+        ),
       ),
     );
   }

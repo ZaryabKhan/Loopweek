@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:home_widget/home_widget.dart';
 
 import 'package:loopweek/data/repositories/task_repository.dart';
@@ -8,9 +9,10 @@ import 'package:loopweek/domain/models/task.dart';
 /// widget via the `home_widget` package. Toggling the widget checkboxes
 /// triggers a background callback registered from `main.dart`.
 ///
-/// The widget reads the user's accent color so app + widget stay visually
-/// consistent. Data is sent as simple marshalled strings/lists — the native
-/// side (Kotlin) renders the list as an Android `RemoteViews`.
+/// The widget reads the user's accent color and the app's effective theme so
+/// app + widget stay visually consistent (including dark mode). Data is sent
+/// as simple marshalled strings/lists — the native side (Kotlin) renders the
+/// list as an Android `RemoteViews`.
 class HomeWidgetService {
   HomeWidgetService(this._repository);
 
@@ -18,10 +20,14 @@ class HomeWidgetService {
   static const String _kTasks = 'loopweek.tasks';
   static const String _kAccent = 'loopweek.accent';
   static const String _kDate = 'loopweek.date';
+  static const String _kTheme = 'loopweek.theme';
 
   final TaskRepository _repository;
 
-  Future<void> pushTodaySnapshot({required ColorTag accent}) async {
+  Future<void> pushTodaySnapshot({
+    required ColorTag accent,
+    required ThemeMode themeMode,
+  }) async {
     final DateTime now = DateTime(
       DateTime.now().year,
       DateTime.now().month,
@@ -43,6 +49,11 @@ class HomeWidgetService {
     await HomeWidget.saveWidgetData(_kTasks, snapshot);
     await HomeWidget.saveWidgetData(_kAccent, accent.encoded);
     await HomeWidget.saveWidgetData(_kDate, now.toIso8601String());
+    // Send the raw theme mode ("system" | "light" | "dark") so the native
+    // widget mirrors the app: forced light/dark are honored directly, and
+    // "system" is resolved from the OS night mode at render time (so it stays
+    // in step even while the app is closed).
+    await HomeWidget.saveWidgetData(_kTheme, themeMode.name);
     await HomeWidget.updateWidget(
       androidName: androidName,
       qualifiedAndroidName:

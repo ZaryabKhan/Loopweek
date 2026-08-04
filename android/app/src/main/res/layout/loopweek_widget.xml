@@ -5,7 +5,7 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="14dp"
-    android:background="#FFF2F2F2">
+    android:background="@color/widget_background">
 
     <TextView
         android:id="@+id/widget_header"
@@ -28,7 +28,7 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
     <TextView
         android:id="@+id/widget_row2"
@@ -39,7 +39,7 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
     <TextView
         android:id="@+id/widget_row3"
@@ -50,7 +50,7 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
     <TextView
         android:id="@+id/widget_row4"
@@ -61,7 +61,7 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
     <TextView
         android:id="@+id/widget_row5"
@@ -72,7 +72,7 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
     <TextView
         android:id="@+id/widget_row6"
@@ -83,7 +83,7 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
     <TextView
         android:id="@+id/widget_row7"
@@ -94,7 +94,7 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
     <TextView
         android:id="@+id/widget_row8"
@@ -105,7 +105,7 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
     <TextView
         android:id="@+id/widget_row9"
@@ -116,7 +116,7 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
     <TextView
         android:id="@+id/widget_row10"
@@ -127,6 +127,6 @@
         android:paddingTop="5dp"
         android:paddingBottom="5dp"
         android:textSize="14sp"
-        android:textColor="#FF212121" />
+        android:textColor="@color/widget_text" />
 
 </LinearLayout>

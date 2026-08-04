@@ -81,6 +81,25 @@ class TaskRepository {
     );
   }
 
+  Future<void> clearAllTasks() async {
+    await _db.batch((batch) {
+      batch.deleteAll(_db.tasks);
+    });
+  }
+
+  Future<void> insertTaskBatch(List<Task> tasks) async {
+    await _db.batch((batch) {
+      for (final task in tasks) {
+        final withId = task.id.isEmpty ? task.copyWith(id: _uuid.v4()) : task;
+        batch.insert(
+          _db.tasks,
+          _mapper.toCompanion(withId),
+          mode: InsertMode.insertOrReplace,
+        );
+      }
+    });
+  }
+
   Future<void> reorderTasksForDate({
     required DateTime date,
     required List<String> orderedIds,

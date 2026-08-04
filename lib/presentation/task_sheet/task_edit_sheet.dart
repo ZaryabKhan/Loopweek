@@ -434,6 +434,7 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
     final notif = ref.read(notificationServiceProvider);
     final widgetSvc = ref.read(homeWidgetServiceProvider);
     final accentTag = ref.read(settingsProvider).colorTag;
+    final themeMode = ref.read(settingsProvider).themeMode;
 
     final Task edited = widget.task == null
         ? Task(
@@ -496,7 +497,10 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
       await notif.cancelTaskReminder(widget.task!.id);
     }
 
-    await widgetSvc.pushTodaySnapshot(accent: accentTag);
+    await widgetSvc.pushTodaySnapshot(
+      accent: accentTag,
+      themeMode: themeMode,
+    );
 
     if (mounted) Navigator.of(context).pop(saved);
   }

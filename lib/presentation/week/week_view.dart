@@ -238,10 +238,15 @@ class _Body extends ConsumerWidget {
                 task: t,
                 accent: accent,
                 onToggle: () async {
+                  final themeMode = settings.themeMode;
                   await repo.setCompleted(id: t.id, completed: !t.isCompleted);
-                  await widgetSvc.pushTodaySnapshot(accent: accentTag);
+                  await widgetSvc.pushTodaySnapshot(
+                    accent: accentTag,
+                    themeMode: themeMode,
+                  );
                 },
                 onTap: () async {
+                  final themeMode = settings.themeMode;
                   final edited = await showModalBottomSheet<Task?>(
                     context: context,
                     isScrollControlled: true,
@@ -254,7 +259,10 @@ class _Body extends ConsumerWidget {
                     ),
                   );
                   if (edited != null) {
-                    await widgetSvc.pushTodaySnapshot(accent: accentTag);
+                    await widgetSvc.pushTodaySnapshot(
+                      accent: accentTag,
+                      themeMode: themeMode,
+                    );
                   }
                 },
                 onLongPress: () => _showQuickActions(context, ref, t.id),
@@ -305,6 +313,7 @@ class _Body extends ConsumerWidget {
                 ),
                 title: const Text('Remove task'),
                 onTap: () async {
+                  final themeMode = ref.read(settingsProvider).themeMode;
                   await repo.deleteTask(id);
                   // Drop any pending reminder for the removed task.
                   await ref
@@ -312,7 +321,10 @@ class _Body extends ConsumerWidget {
                       .cancelTaskReminder(id);
                   await ref
                       .read(homeWidgetServiceProvider)
-                      .pushTodaySnapshot(accent: accentTag);
+                      .pushTodaySnapshot(
+                        accent: accentTag,
+                        themeMode: themeMode,
+                      );
                   if (context.mounted) Navigator.of(context).pop();
                 },
               ),

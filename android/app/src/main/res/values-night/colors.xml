@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Dark palette for the home-screen widget (auto-applied on night mode) -->
+    <color name="widget_background">#FF121212</color>
+    <color name="widget_text">#FFE6E6E6</color>
+</resources>

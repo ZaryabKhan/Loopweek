@@ -270,10 +270,14 @@ class _Swatch extends ConsumerWidget {
       label: '$_label accent',
       child: InkWell(
         onTap: () async {
+          final themeMode = ref.read(settingsProvider).themeMode;
           await ref.read(settingsProvider).setColorTag(tag);
           await ref
               .read(homeWidgetServiceProvider)
-              .pushTodaySnapshot(accent: tag);
+              .pushTodaySnapshot(
+                accent: tag,
+                themeMode: themeMode,
+              );
         },
         customBorder: const CircleBorder(),
         child: Container(

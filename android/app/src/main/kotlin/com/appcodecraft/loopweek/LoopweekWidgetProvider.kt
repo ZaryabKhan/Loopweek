@@ -5,8 +5,10 @@ import android.appwidget.AppWidgetManager
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
+import android.content.res.Configuration
 import android.graphics.Color
 import android.net.Uri
+import android.view.View
 import android.widget.RemoteViews
 import es.antonborri.home_widget.HomeWidgetBackgroundReceiver
 import es.antonborri.home_widget.HomeWidgetProvider
@@ -32,6 +34,17 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
     companion object {
         private const val KEY_TASKS = "loopweek.tasks"
         private const val KEY_ACCENT = "loopweek.accent"
+        private const val KEY_THEME = "loopweek.theme"
+
+        // App palette: light scaffold #F2F2F2 / white surface; dark near-black
+        // #121212 / #1E1E1E. These mirror lib/core/theme/app_theme.dart.
+        private const val LIGHT_BG = 0xFFF2F2F2.toInt()
+        private const val DARK_BG = 0xFF121212.toInt()
+        private const val LIGHT_TEXT = 0xFF212121.toInt()
+        private const val DARK_TEXT = 0xFFE6E6E6.toInt()
+        private const val LIGHT_DONE = 0xFF9E9E9E.toInt()
+        private const val DARK_DONE = 0xFFBDBDBD.toInt()
+
         private val ROW_VIEWS = intArrayOf(
             R.id.widget_row1, R.id.widget_row2, R.id.widget_row3,
             R.id.widget_row4, R.id.widget_row5, R.id.widget_row6,
@@ -59,17 +72,24 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
         val accent = parseAccent(prefs.getString(KEY_ACCENT, null))
         val rows = parseTasks(prefs.getString(KEY_TASKS, null)).take(maxRows)
 
+        val dark = isDark(context, prefs)
+        val background = if (dark) DARK_BG else LIGHT_BG
+        val defaultText = if (dark) DARK_TEXT else LIGHT_TEXT
+        val doneColor = if (dark) DARK_DONE else LIGHT_DONE
+
         val views = RemoteViews(context.packageName, R.layout.loopweek_widget)
+        views.setInt(R.id.widget_root, "setBackgroundColor", background)
 
         views.setTextViewText(R.id.widget_header, "TODAY")
         if (accent != null) views.setTextColor(R.id.widget_header, accent)
 
         if (rows.isEmpty()) {
             views.setTextViewText(R.id.widget_row1, "Nothing on the list yet.")
-            views.setViewVisibility(R.id.widget_row1, android.view.View.VISIBLE)
+            views.setTextColor(R.id.widget_row1, defaultText)
+            views.setViewVisibility(R.id.widget_row1, View.VISIBLE)
             for (i in 1 until maxRows) {
                 views.setTextViewText(ROW_VIEWS[i], "")
-                views.setViewVisibility(ROW_VIEWS[i], android.view.View.GONE)
+                views.setViewVisibility(ROW_VIEWS[i], View.GONE)
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)
             return
@@ -83,20 +103,37 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
                 if (row.time.isNotEmpty()) append("   ").append(row.time)
             }
             views.setTextViewText(viewId, label)
-            views.setViewVisibility(viewId, android.view.View.VISIBLE)
-            if (accent != null && row.done) {
-                views.setTextColor(viewId, 0xFF9E9E9E.toInt())
-            } else if (accent != null) {
-                views.setTextColor(viewId, accent)
+            views.setViewVisibility(viewId, View.VISIBLE)
+            val textColor = when {
+                row.done -> doneColor       // muted, theme-appropriate
+                accent != null -> accent    // incomplete task -> accent
+                else -> defaultText
             }
+            views.setTextColor(viewId, textColor)
             views.setOnClickPendingIntent(viewId, togglePendingIntent(context, row.id))
         }
         for (i in rows.size until maxRows) {
             views.setTextViewText(ROW_VIEWS[i], "")
-            views.setViewVisibility(ROW_VIEWS[i], android.view.View.GONE)
+            views.setViewVisibility(ROW_VIEWS[i], View.GONE)
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
+    }
+
+    /** Resolves the widget's light/dark theme from the pushed theme mode.
+     *  "light"/"dark" honor the app's manual override; "system" (or not yet
+     *  pushed) is resolved from the OS night mode at render time, so it stays
+     *  in step with the device even while the app is closed. */
+    private fun isDark(context: Context, prefs: SharedPreferences): Boolean {
+        return when (prefs.getString(KEY_THEME, null)) {
+            "light" -> false
+            "dark" -> true
+            else -> {
+                val nightMode =
+                    context.resources.configuration.uiMode and Configuration.UI_MODE_NIGHT_MASK
+                nightMode == Configuration.UI_MODE_NIGHT_YES
+            }
+        }
     }
 
     /** Builds a broadcast PendingIntent so each row's taskId reaches the Dart
