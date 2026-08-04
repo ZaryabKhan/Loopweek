@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:loopweek/core/dev_links.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
 import 'package:loopweek/presentation/providers.dart';
@@ -10,6 +11,7 @@ import 'package:loopweek/presentation/settings/dummy_data.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
 import 'package:loopweek/presentation/widgets/accent_segmented.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const _swatchLabel = {
   ColorTag.orange: 'Orange',
@@ -154,6 +156,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),
             ),
+            const SizedBox(height: 24),
+            _LabelRow('Developer'),
+            const SizedBox(height: 8),
+            _DevLinkTile(
+              icon: Icons.code,
+              title: 'GitHub',
+              subtitle: '@ZaryabKhan',
+              url: DevLinks.github,
+            ),
+            _DevLinkTile(
+              icon: Icons.language,
+              title: 'Website',
+              subtitle: 'All apps',
+              url: DevLinks.website,
+            ),
+            _DevLinkTile(
+              icon: Icons.store,
+              title: 'Google Play',
+              subtitle: 'Developer profile',
+              url: DevLinks.playStore,
+            ),
           ],
         ),
       ),
@@ -188,6 +211,72 @@ class _LabelRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: GestureDetector(onTap: onTap, child: child),
     );
+  }
+}
+
+/// A tappable row that opens one of the developer's public profiles in the
+/// external browser. Disabled while [url] is empty (so placeholder links never
+/// open a bogus site).
+class _DevLinkTile extends StatelessWidget {
+  const _DevLinkTile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.url,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String url;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final enabled = url.isNotEmpty;
+    final onSurface = theme.colorScheme.onSurface;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      enabled: enabled,
+      leading: Icon(
+        icon,
+        color: enabled ? theme.colorScheme.primary : theme.disabledColor,
+      ),
+      title: Text(
+        title,
+        style: theme.textTheme.titleMedium?.copyWith(
+          color: enabled ? onSurface : theme.disabledColor,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: enabled ? onSurface.withValues(alpha: 0.6) : theme.disabledColor,
+        ),
+      ),
+      trailing: Icon(
+        enabled ? Icons.open_in_new : Icons.link_off,
+        size: 18,
+        color: enabled ? onSurface.withValues(alpha: 0.5) : theme.disabledColor,
+      ),
+      onTap: () => _open(context),
+    );
+  }
+
+  Future<void> _open(BuildContext context) async {
+    if (url.isEmpty) return;
+    final uri = Uri.parse(url);
+    // Prefer the external browser; if the device has no handler for web
+    // schemes (e.g. an emulator without a browser), fall back to the
+    // platform-default mode so the link still opens.
+    final external = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (external || !context.mounted) return;
+    final ok = await launchUrl(uri); // platformDefault: external, then in-app
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Couldn't open the link.")),
+      );
+    }
   }
 }
 
