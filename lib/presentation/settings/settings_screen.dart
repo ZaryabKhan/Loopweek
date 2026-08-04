@@ -148,7 +148,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _LabelRow('Gestures', onTap: _onGestureTap),
             const SizedBox(height: 8),
             Text(
-              'Hold to remove tasks or reorder by time and priority.',
+              'Hold a task to remove it. Drag the grip on a task to reorder '
+              'it within its day.',
               style: theme.textTheme.bodyMedium?.copyWith(
                 color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
               ),

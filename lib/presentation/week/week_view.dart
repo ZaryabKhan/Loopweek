@@ -230,43 +230,81 @@ class _Body extends ConsumerWidget {
             ],
           );
         }
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (final t in tasks)
-              TaskTile(
-                task: t,
-                accent: accent,
-                onToggle: () async {
-                  final themeMode = settings.themeMode;
-                  await repo.setCompleted(id: t.id, completed: !t.isCompleted);
-                  await widgetSvc.pushTodaySnapshot(
-                    accent: accentTag,
-                    themeMode: themeMode,
-                  );
-                },
-                onTap: () async {
-                  final themeMode = settings.themeMode;
-                  final edited = await showModalBottomSheet<Task?>(
-                    context: context,
-                    isScrollControlled: true,
-                    backgroundColor: Colors.transparent,
-                    builder: (sheetContext) => Padding(
-                      padding: EdgeInsets.only(
-                        bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
-                      ),
-                      child: TaskEditSheet(task: t, date: date),
-                    ),
-                  );
-                  if (edited != null) {
+
+        Widget buildRow(int index, Task t) {
+          final muted =
+              Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.45);
+          return Row(
+            key: ValueKey(t.id),
+            children: [
+              Expanded(
+                child: TaskTile(
+                  task: t,
+                  accent: accent,
+                  onToggle: () async {
+                    final themeMode = settings.themeMode;
+                    await repo.setCompleted(
+                      id: t.id,
+                      completed: !t.isCompleted,
+                    );
                     await widgetSvc.pushTodaySnapshot(
                       accent: accentTag,
                       themeMode: themeMode,
                     );
-                  }
-                },
-                onLongPress: () => _showQuickActions(context, ref, t.id),
+                  },
+                  onTap: () async {
+                    final themeMode = settings.themeMode;
+                    final edited = await showModalBottomSheet<Task?>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (sheetContext) => Padding(
+                        padding: EdgeInsets.only(
+                          bottom: MediaQuery.of(sheetContext).viewInsets.bottom,
+                        ),
+                        child: TaskEditSheet(task: t, date: date),
+                      ),
+                    );
+                    if (edited != null) {
+                      await widgetSvc.pushTodaySnapshot(
+                        accent: accentTag,
+                        themeMode: themeMode,
+                      );
+                    }
+                  },
+                  onLongPress: () => _showQuickActions(context, ref, t.id),
+                ),
               ),
+              // Drag the grip to reorder within the day. The grip is the only
+              // reorder target, so tap / check / long-press on the row are
+              // left untouched.
+              ReorderableDragStartListener(
+                index: index,
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 14),
+                  child: Icon(Icons.drag_handle, size: 20, color: muted),
+                ),
+              ),
+            ],
+          );
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ReorderableListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              buildDefaultDragHandles: false,
+              // Keep the flat look while dragging: no shadow on the proxy.
+              proxyDecorator: (child, index, animation) =>
+                  Material(color: Colors.transparent, elevation: 0, child: child),
+              onReorder: (oldIndex, newIndex) =>
+                  _reorder(context, ref, date, oldIndex, newIndex, tasks),
+              children: [
+                for (var i = 0; i < tasks.length; i++) buildRow(i, tasks[i]),
+              ],
+            ),
             if (!settings.longPressHintSeen) const _LongPressHint(),
             _AddRow(date: date, accent: accent),
           ],
@@ -342,6 +380,35 @@ class _Body extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  /// Persists a drag-reorder of one day's tasks (ordered ids -> new sortOrder)
+  /// and refreshes the home widget when the reordered day is today.
+  Future<void> _reorder(
+    BuildContext context,
+    WidgetRef ref,
+    DateTime date,
+    int oldIndex,
+    int newIndex,
+    List<Task> tasks,
+  ) async {
+    if (newIndex > oldIndex) newIndex -= 1;
+    final ordered = tasks.map((t) => t.id).toList();
+    final moved = ordered.removeAt(oldIndex);
+    ordered.insert(newIndex, moved);
+
+    await ref
+        .read(taskRepositoryProvider)
+        .reorderTasksForDate(date: date, orderedIds: ordered);
+
+    if (isToday) {
+      final accentTag = ref.read(settingsProvider).colorTag;
+      final themeMode = ref.read(settingsProvider).themeMode;
+      await ref.read(homeWidgetServiceProvider).pushTodaySnapshot(
+        accent: accentTag,
+        themeMode: themeMode,
+      );
+    }
   }
 }
 
