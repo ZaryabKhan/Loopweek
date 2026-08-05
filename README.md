@@ -5,6 +5,10 @@
 <h1 align="center">Loopweek</h1>
 
 <p align="center">
+  <a href="https://buy.polar.sh/polar_cl_J3Nnh3YVrN1jMh8GdYaqZD3FjKvg9lsyR3eih1FkRt8"><img src="https://img.shields.io/badge/Donate-Loopweek-blue.svg?style=for-the-badge" alt="Donate"></a>
+</p>
+
+<p align="center">
   <em>One screen, seven days, nothing else.</em><br>
   A free, fully open-source weekly to-do app for Android, built in Flutter.<br>
   No accounts · No cloud sync · No tracking · No ads · No paywall
@@ -52,7 +56,25 @@ for the core loop. 100% local, on-device storage.
 
 ## 📸 Screenshots
 
-> Screenshots coming soon. Place captures in `docs/images/` and reference them above.
+<p float="left" align="middle">
+  <img src="docs/images/1.png" width="32%" alt="Main Week View (Light Mode)" />
+  <img src="docs/images/2.png" width="32%" alt="Home Screen Widget" />
+  <img src="docs/images/3.png" width="32%" alt="Settings & Customization" />
+</p>
+
+1. **Main Week View (Light Mode)** — The single-screen accordion with today expanded.
+2. **Home Screen Widget** — Today's tasks on your launcher, with checkboxes that toggle in the background.
+3. **Settings & Customization** — Accent color picker, theme settings, and widgets configuration.
+
+<p float="left" align="middle">
+  <img src="docs/images/4.png" width="32%" alt="Task Creation bottom sheet" />
+  <img src="docs/images/5.png" width="32%" alt="Main Week View (Dark Mode)" />
+</p>
+
+4. **Task Creation bottom sheet** — Adding a task with recurrence and reminders.
+5. **Main Week View (Dark Mode)** — The same week view following the system theme.
+
+> Captures are stored in `docs/images/`. Add more by dropping files there and referencing them above.
 
 ## 🛠️ Tech stack
 
