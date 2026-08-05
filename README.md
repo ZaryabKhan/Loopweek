@@ -57,22 +57,15 @@ for the core loop. 100% local, on-device storage.
 ## 📸 Screenshots
 
 <p float="left" align="middle">
-  <img src="docs/images/1.png" width="32%" alt="Main Week View (Light Mode)" />
-  <img src="docs/images/2.png" width="32%" alt="Home Screen Widget" />
-  <img src="docs/images/3.png" width="32%" alt="Settings & Customization" />
+  <img src="docs/images/1.png" width="32%" alt="Screenshot" />
+  <img src="docs/images/2.png" width="32%" alt="Screenshot" />
+  <img src="docs/images/3.png" width="32%" alt="Screenshot" />
 </p>
-
-1. **Main Week View (Light Mode)** — The single-screen accordion with today expanded.
-2. **Home Screen Widget** — Today's tasks on your launcher, with checkboxes that toggle in the background.
-3. **Settings & Customization** — Accent color picker, theme settings, and widgets configuration.
 
 <p float="left" align="middle">
-  <img src="docs/images/4.png" width="32%" alt="Task Creation bottom sheet" />
-  <img src="docs/images/5.png" width="32%" alt="Main Week View (Dark Mode)" />
+  <img src="docs/images/4.png" width="32%" alt="Screenshot" />
+  <img src="docs/images/5.png" width="32%" alt="Screenshot" />
 </p>
-
-4. **Task Creation bottom sheet** — Adding a task with recurrence and reminders.
-5. **Main Week View (Dark Mode)** — The same week view following the system theme.
 
 > Captures are stored in `docs/images/`. Add more by dropping files there and referencing them above.
 
