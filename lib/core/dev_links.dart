@@ -17,4 +17,8 @@ abstract final class DevLinks {
   /// this points at the developer page for your other apps for now.
   static const String playStore =
       'https://play.google.com/store/apps/dev?id=6994476958831569782';
+
+  /// Polar checkout where users can support the project with a one-off payment.
+  static const String support =
+      'https://buy.polar.sh/polar_cl_J3Nnh3YVrN1jMh8GdYaqZD3FjKvg9lsyR3eih1FkRt8';
 }

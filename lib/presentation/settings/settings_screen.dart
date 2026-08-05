@@ -177,6 +177,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: 'Developer profile',
               url: DevLinks.playStore,
             ),
+            _DevLinkTile(
+              icon: Icons.favorite,
+              title: 'Support Loopweek',
+              subtitle: 'Buy me a coffee',
+              url: DevLinks.support,
+            ),
           ],
         ),
       ),
