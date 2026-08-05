@@ -1,0 +1,70 @@
+name: 🐛 Bug Report
+description: Report a bug to help us improve Loopweek
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report a bug! Please fill out the information below.
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug description
+      description: A clear description of what the bug is.
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Open the app
+        2. Go to '...'
+        3. Tap on '...'
+        4. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What you expected to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happened.
+    validations:
+      required: true
+  - type: input
+    id: app-version
+    attributes:
+      label: App version
+      placeholder: "e.g. 1.0.0"
+    validations:
+      required: true
+  - type: input
+    id: android-version
+    attributes:
+      label: Android version
+      placeholder: "e.g. Android 14"
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Device
+      placeholder: "e.g. Pixel 8"
+    validations:
+      required: false
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / screenshots
+      description: Add any log output or screenshots that help explain the problem.
+    validations:
+      required: false

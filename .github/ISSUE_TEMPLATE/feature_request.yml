@@ -1,0 +1,40 @@
+name: ✨ Feature Request
+description: Suggest a new feature or improvement
+title: "[FEATURE] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Loopweek is intentionally small — the spec is "one screen, seven days,
+        nothing else." Please check CONTRIBUTING.md's scope rules before
+        posting. Out-of-scope ideas (cloud sync, accounts, calendar view,
+        subtasks, ads, analytics, IAP) won't be accepted.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Is your feature request related to a problem?
+      description: A clear description of the problem. Ex. I'm always frustrated when [...]
+    validations:
+      required: false
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed solution
+      description: What you'd like to happen.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any alternative solutions or features you've considered.
+    validations:
+      required: false
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add any other context or screenshots about the feature here.
+    validations:
+      required: false

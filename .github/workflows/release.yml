@@ -1,0 +1,76 @@
+name: Release
+
+# Automatically builds, signs, and publishes a GitHub Release (with an
+# installable APK) whenever a version tag (e.g. "v1.2.0") is pushed.
+#
+# One-time setup required (see RELEASE.md):
+#   Add these repository secrets (Settings → Secrets and variables → Actions):
+#     RELEASE_KEYSTORE_BASE64   – base64-encoded GitHub-release keystore (.jks)
+#     RELEASE_STORE_PASSWORD    – keystore store password
+#     RELEASE_KEY_ALIAS         – key alias inside the keystore
+#     RELEASE_KEY_PASSWORD      – key password
+#
+# This uses a DEDICATED GitHub-release keystore (not your Play upload key),
+# so your Play signing key never touches CI.
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write   # required to create the GitHub Release
+
+jobs:
+  release:
+    name: Build & Publish GitHub Release
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate Drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Write signing config from secrets
+        run: |
+          echo "${{ secrets.RELEASE_KEYSTORE_BASE64 }}" | base64 -d > android/app/release.keystore
+          cat > android/key.properties <<'EOF'
+          storeFile=release.keystore
+          storePassword=${{ secrets.RELEASE_STORE_PASSWORD }}
+          keyAlias=${{ secrets.RELEASE_KEY_ALIAS }}
+          keyPassword=${{ secrets.RELEASE_KEY_PASSWORD }}
+          EOF
+
+      - name: Build signed release APK
+        run: flutter build apk --release
+
+      - name: Prepare release artifact
+        run: |
+          APK=$(find build/app/outputs/flutter-apk -name '*.apk' | head -1)
+          cp "$APK" "Loopweek-${GITHUB_REF_NAME}.apk"
+          ls -lh "Loopweek-${GITHUB_REF_NAME}.apk"
+
+      - name: Create GitHub Release & upload APK
+        uses: softprops/action-gh-release@v2
+        with:
+          files: Loopweek-${{ github.ref_name }}.apk
+          generate_release_notes: true
+          draft: false
+          prerelease: false

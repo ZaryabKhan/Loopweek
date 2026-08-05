@@ -1,0 +1,14 @@
+# Copy this file to "android/key.properties" (in the android/ folder, next to
+# build.gradle.kts) and fill in your signing credentials.
+#
+# The real key.properties is gitignored and must NEVER be committed.
+# Only the maintainer needs it — contributors build debug APKs without it.
+#
+# storeFile can be an absolute path, or a path relative to android/app/
+# (where build.gradle.kts reads it). Point it at the keystore you already
+# use for the Play Store release build.
+
+storeFile=/absolute/path/to/your/release-key.jks
+storePassword=your-store-password
+keyAlias=your-key-alias
+keyPassword=your-key-password
