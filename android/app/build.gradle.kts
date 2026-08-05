@@ -1,3 +1,6 @@
+import java.io.FileInputStream
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("kotlin-android")
@@ -17,16 +20,13 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
-    }
-
+    // The Kotlin JVM target is inferred from compileOptions above (AGP 9 / Kotlin 2.2+).
     // Reads signing creds from android/key.properties when present (gitignored).
     // Built locally for Play Store AAB uploads. CI uses repo secrets instead.
     val keyPropertiesFile = rootProject.file("key.properties")
-    val keyProperties = java.util.Properties()
+    val keyProperties = Properties()
     if (keyPropertiesFile.exists()) {
-        keyProperties.load(java.io.FileInputStream(keyPropertiesFile))
+        keyProperties.load(FileInputStream(keyPropertiesFile))
     }
     val hasSigning = keyProperties.getProperty("storeFile") != null
 
