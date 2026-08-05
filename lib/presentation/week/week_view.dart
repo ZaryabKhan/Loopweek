@@ -288,6 +288,7 @@ class _Body extends ConsumerWidget {
               // Keep the flat look while dragging: no shadow on the proxy.
               proxyDecorator: (child, index, animation) =>
                   Material(color: Colors.transparent, elevation: 0, child: child),
+              // ignore: deprecated_member_use
               onReorder: (oldIndex, newIndex) =>
                   _reorder(context, ref, date, oldIndex, newIndex, tasks),
               children: [
