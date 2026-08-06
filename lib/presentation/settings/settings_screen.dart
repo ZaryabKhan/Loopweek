@@ -257,7 +257,9 @@ class _DevLinkTile extends StatelessWidget {
       subtitle: Text(
         subtitle,
         style: theme.textTheme.bodySmall?.copyWith(
-          color: enabled ? onSurface.withValues(alpha: 0.6) : theme.disabledColor,
+          color: enabled
+              ? onSurface.withValues(alpha: 0.6)
+              : theme.disabledColor,
         ),
       ),
       trailing: Icon(
@@ -279,9 +281,9 @@ class _DevLinkTile extends StatelessWidget {
     if (external || !context.mounted) return;
     final ok = await launchUrl(uri); // platformDefault: external, then in-app
     if (!ok && context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("Couldn't open the link.")),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Couldn't open the link.")));
     }
   }
 }

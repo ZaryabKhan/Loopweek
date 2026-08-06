@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -486,33 +485,27 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
       final bool wasRecurring = widget.task?.recurrence.isRecurring ?? false;
       final bool isRecurring = saved.recurrence.isRecurring;
 
-      // If the user materially changed an existing recurring rule (pattern,
-      // anchor date, or time), future occurrences may no longer match the new
-      // rule. Delete them and let materializeOccurrences recreate them with
-      // the updated pattern. Past occurrences are left untouched as history.
-      if (widget.task != null && wasRecurring) {
-        final ruleChanged =
-            widget.task!.recurrence != saved.recurrence ||
-            widget.task!.date != saved.date ||
-            widget.task!.time != saved.time;
-        if (ruleChanged) {
-          final oldOccurrences = await repo.getOccurrencesOf(widget.task!.id);
-          for (final occurrence in oldOccurrences) {
-            if (occurrence.date.isBefore(today)) continue;
-            await notif.cancelTaskReminder(occurrence.id);
-            await repo.deleteTask(occurrence.id);
-          }
-        }
+      // Synchronize future occurrences. This updates existing future rows to
+      // mirror the rule's current metadata (title, color, time, reminder,
+      // sortOrder), deletes dates the new pattern no longer produces, and
+      // materializes any missing ones. Past occurrences are left untouched.
+      //
+      // First cancel existing future reminders so deleted/updated occurrences
+      // don't leave orphaned or stale notifications.
+      final existingFutureOccurrences = wasRecurring
+          ? (await repo.getOccurrencesOf(
+              saved.id,
+            )).where((o) => !o.date.isBefore(today)).toList()
+          : <Task>[];
+      for (final occurrence in existingFutureOccurrences) {
+        await notif.cancelTaskReminder(occurrence.id);
       }
 
-      // If recurring, materialize occurrences across a generous forward window
-      // so the rest of the week view is populated immediately.
       var occurrences = const <Task>[];
+      if (wasRecurring || isRecurring) {
+        await repo.syncFutureOccurrences(rule: saved, today: today);
+      }
       if (isRecurring) {
-        final end = today.add(const Duration(days: 365));
-        await repo.materializeOccurrences(rule: saved, start: today, end: end);
-        // Re-schedule reminders for every occurrence (existing + just-created),
-        // since each is an independent row with its own notification id.
         occurrences = await repo.getOccurrencesOf(saved.id);
       }
 
@@ -540,12 +533,6 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
         }
       } else if (widget.task != null) {
         await notif.cancelTaskReminder(widget.task!.id);
-        if (wasRecurring) {
-          final oldOccurrences = await repo.getOccurrencesOf(widget.task!.id);
-          for (final occurrence in oldOccurrences) {
-            await notif.cancelTaskReminder(occurrence.id);
-          }
-        }
       }
 
       // Always refresh the home widget, even if reminder scheduling failed

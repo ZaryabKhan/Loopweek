@@ -7,13 +7,7 @@ import 'package:loopweek/domain/services/recurrence_generator.dart';
 Task _rule({
   required DateTime date,
   Recurrence recurrence = Recurrence.never,
-}) =>
-    Task(
-      id: 'rule',
-      title: 'r',
-      date: date,
-      recurrence: recurrence,
-    );
+}) => Task(id: 'rule', title: 'r', date: date, recurrence: recurrence);
 
 DateTime _d(int y, int m, int d) => DateTime(y, m, d);
 
@@ -54,7 +48,12 @@ void main() {
         endInclusive: _d(2026, 8, 5),
         includeAnchor: false,
       );
-      expect(result, [_d(2026, 8, 2), _d(2026, 8, 3), _d(2026, 8, 4), _d(2026, 8, 5)]);
+      expect(result, [
+        _d(2026, 8, 2),
+        _d(2026, 8, 3),
+        _d(2026, 8, 4),
+        _d(2026, 8, 5),
+      ]);
     });
 
     test('daily includes anchor when includeAnchor=true', () {
@@ -64,8 +63,11 @@ void main() {
         endInclusive: _d(2026, 8, 5),
       );
       expect(result, [
-        _d(2026, 8, 1), _d(2026, 8, 2), _d(2026, 8, 3),
-        _d(2026, 8, 4), _d(2026, 8, 5),
+        _d(2026, 8, 1),
+        _d(2026, 8, 2),
+        _d(2026, 8, 3),
+        _d(2026, 8, 4),
+        _d(2026, 8, 5),
       ]);
     });
 
@@ -97,8 +99,11 @@ void main() {
         includeAnchor: true,
       );
       expect(result, [
-        _d(2026, 8, 2), _d(2026, 8, 9),
-        _d(2026, 8, 16), _d(2026, 8, 23), _d(2026, 8, 30),
+        _d(2026, 8, 2),
+        _d(2026, 8, 9),
+        _d(2026, 8, 16),
+        _d(2026, 8, 23),
+        _d(2026, 8, 30),
       ]);
     });
 
@@ -143,59 +148,93 @@ void main() {
       expect(result, [_d(2026, 8, 3), _d(2026, 8, 4), _d(2026, 8, 5)]);
     });
 
-    test('weekly only emits anchor-aligned dates when window starts mid-step', () {
-      // Anchor Aug 2 (Sun), window starts Aug 5: first occurrence is Aug 9.
-      final result = RecurrenceGenerator.occurrencesForWindow(
-        rule: _rule(date: _d(2026, 8, 2), recurrence: Recurrence.weekly),
-        startInclusive: _d(2026, 8, 5),
-        endInclusive: _d(2026, 8, 20),
-      );
-      expect(result, [_d(2026, 8, 9), _d(2026, 8, 16)]);
-    });
+    test(
+      'weekly only emits anchor-aligned dates when window starts mid-step',
+      () {
+        // Anchor Aug 2 (Sun), window starts Aug 5: first occurrence is Aug 9.
+        final result = RecurrenceGenerator.occurrencesForWindow(
+          rule: _rule(date: _d(2026, 8, 2), recurrence: Recurrence.weekly),
+          startInclusive: _d(2026, 8, 5),
+          endInclusive: _d(2026, 8, 20),
+        );
+        expect(result, [_d(2026, 8, 9), _d(2026, 8, 16)]);
+      },
+    );
 
-    test('weekly includes the anchor itself when inside window and requested', () {
-      final result = RecurrenceGenerator.occurrencesForWindow(
-        rule: _rule(date: _d(2026, 8, 2), recurrence: Recurrence.weekly),
-        startInclusive: _d(2026, 8, 1),
-        endInclusive: _d(2026, 8, 3),
-        includeAnchor: true,
-      );
-      expect(result, [_d(2026, 8, 2)]);
-    });
+    test(
+      'weekly includes the anchor itself when inside window and requested',
+      () {
+        final result = RecurrenceGenerator.occurrencesForWindow(
+          rule: _rule(date: _d(2026, 8, 2), recurrence: Recurrence.weekly),
+          startInclusive: _d(2026, 8, 1),
+          endInclusive: _d(2026, 8, 3),
+          includeAnchor: true,
+        );
+        expect(result, [_d(2026, 8, 2)]);
+      },
+    );
   });
 
   group('RecurrenceGenerator.isValidOccurrenceOf', () {
     final rule = _rule(date: _d(2026, 8, 2), recurrence: Recurrence.weekly);
 
     test('anchor is a valid occurrence', () {
-      expect(RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 8, 2)), isTrue);
+      expect(
+        RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 8, 2)),
+        isTrue,
+      );
     });
 
     test('forward same weekday occurrences are valid', () {
-      expect(RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 8, 9)), isTrue);
-      expect(RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 9, 6)), isTrue);
+      expect(
+        RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 8, 9)),
+        isTrue,
+      );
+      expect(
+        RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 9, 6)),
+        isTrue,
+      );
     });
 
     test('forward different weekday is not valid', () {
-      expect(RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 8, 3)), isFalse);
-      expect(RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 8, 7)), isFalse);
+      expect(
+        RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 8, 3)),
+        isFalse,
+      );
+      expect(
+        RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 8, 7)),
+        isFalse,
+      );
     });
 
     test('past dates are never valid (other than the anchor itself)', () {
-      expect(RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 7, 26)), isFalse);
+      expect(
+        RecurrenceGenerator.isValidOccurrenceOf(rule, _d(2026, 7, 26)),
+        isFalse,
+      );
     });
 
     test('non-recurring rule only accepts the anchor', () {
       final nr = _rule(date: _d(2026, 8, 2), recurrence: Recurrence.never);
-      expect(RecurrenceGenerator.isValidOccurrenceOf(nr, _d(2026, 8, 2)), isTrue);
-      expect(RecurrenceGenerator.isValidOccurrenceOf(nr, _d(2026, 8, 3)), isFalse);
+      expect(
+        RecurrenceGenerator.isValidOccurrenceOf(nr, _d(2026, 8, 2)),
+        isTrue,
+      );
+      expect(
+        RecurrenceGenerator.isValidOccurrenceOf(nr, _d(2026, 8, 3)),
+        isFalse,
+      );
     });
   });
 
   group('Task domain behaviour', () {
     test('weekly caption weekday index is Sunday-first', () {
       // DateTime.weekday: Sunday = 7. We want Sunday -> 0, Monday -> 1, etc.
-      final sunday = Task(id: 'a', title: 't', date: _d(2026, 8, 2)); // Aug 2 2026 is Sunday
+      final sunday = Task(
+        id: 'a',
+        title: 't',
+        date: _d(2026, 8, 2),
+      ); // Aug 2 2026 is Sunday
       expect(sunday.weekdayIndex, 0);
       final monday = Task(id: 'a', title: 't', date: _d(2026, 8, 3));
       expect(monday.weekdayIndex, 1);
@@ -205,7 +244,9 @@ void main() {
 
     test('copyWith clears optional fields when requested', () {
       final t = Task(
-        id: 'x', title: 't', date: _d(2026, 8, 2),
+        id: 'x',
+        title: 't',
+        date: _d(2026, 8, 2),
         time: const TimeOfDay(hour: 9, minute: 30),
         hasTime: true,
         recurrenceParentId: 'p',

@@ -21,10 +21,10 @@ enum Recurrence {
   }
 
   String get name => switch (this) {
-        Recurrence.never => 'never',
-        Recurrence.daily => 'daily',
-        Recurrence.weekly => 'weekly',
-      };
+    Recurrence.never => 'never',
+    Recurrence.daily => 'daily',
+    Recurrence.weekly => 'weekly',
+  };
 
   bool get isRecurring => this != Recurrence.never;
 }

@@ -274,10 +274,7 @@ class _Swatch extends ConsumerWidget {
           await ref.read(settingsProvider).setColorTag(tag);
           await ref
               .read(homeWidgetServiceProvider)
-              .pushTodaySnapshot(
-                accent: tag,
-                themeMode: themeMode,
-              );
+              .pushTodaySnapshot(accent: tag, themeMode: themeMode);
         },
         customBorder: const CircleBorder(),
         child: Container(

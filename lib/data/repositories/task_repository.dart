@@ -191,6 +191,83 @@ class TaskRepository {
 
   static String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
 
+  /// Synchronize future occurrences of [rule] (dates >= [today]) with the
+  /// current rule metadata and pattern. Existing future occurrences that no
+  /// longer match the rule's recurrence are deleted; those that still match are
+  /// updated to share the rule's title, color, time, reminder and sort order.
+  /// Missing future occurrences are then materialized. Past occurrences are
+  /// left untouched as history.
+  ///
+  /// This is important because occurrences are stored as independent rows, so
+  /// editing a rule's title/color/reminder would otherwise leave future
+  /// occurrences stale while the anchor row reflects the new values.
+  Future<void> syncFutureOccurrences({
+    required Task rule,
+    required DateTime today,
+  }) async {
+    final futureCutoff = DateTime(today.year, today.month, today.day);
+
+    if (!rule.recurrence.isRecurring) {
+      // Stopping recurrence: remove all future occurrences, keep history.
+      final futureRows =
+          await (_db.select(_db.tasks)..where(
+                (t) =>
+                    t.recurrenceParentId.equals(rule.id) &
+                    t.date.isBiggerOrEqualValue(futureCutoff),
+              ))
+              .get();
+      await _db.batch((batch) {
+        for (final row in futureRows) {
+          batch.deleteWhere(_db.tasks, (t) => t.id.equals(row.id));
+        }
+      });
+      return;
+    }
+
+    // Desired future dates for the current rule pattern.
+    final end = futureCutoff.add(const Duration(days: 365));
+    final desiredDates = RecurrenceGenerator.occurrencesForWindow(
+      rule: rule,
+      startInclusive: futureCutoff,
+      endInclusive: end,
+      includeAnchor: false,
+    ).map(_dateKey).toSet();
+
+    // Existing future occurrences.
+    final existing = await getOccurrencesOf(rule.id);
+    final future = existing
+        .where((o) => !o.date.isBefore(futureCutoff))
+        .toList();
+
+    await _db.batch((batch) {
+      for (final occurrence in future) {
+        if (!desiredDates.contains(_dateKey(occurrence.date))) {
+          // Pattern no longer produces this date; delete it.
+          batch.deleteWhere(_db.tasks, (t) => t.id.equals(occurrence.id));
+          continue;
+        }
+        // Keep the date/completion history, but mirror the rule's metadata.
+        final updated = occurrence.copyWith(
+          title: rule.title,
+          colorTag: rule.colorTag,
+          hasTime: rule.hasTime,
+          time: rule.time,
+          clearTime: !rule.hasTime,
+          hasReminder: rule.hasReminder,
+          sortOrder: rule.sortOrder,
+        );
+        batch.update(
+          _db.tasks,
+          _mapper.toCompanion(updated),
+          where: (t) => t.id.equals(updated.id),
+        );
+      }
+    });
+
+    // Fill any gaps (e.g. newly extended window or changed pattern).
+    await materializeOccurrences(rule: rule, start: futureCutoff, end: end);
+  }
+
   /// Stop future recurrence of the rule with [parentId] without touching
   /// generated history. Concretely: splits the source rule into a non-recurring
   /// anchor row going forward, by marking its recurrence as [Recurrence.never].

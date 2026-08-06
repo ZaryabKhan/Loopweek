@@ -57,8 +57,9 @@ class Task {
       time: clearTime ? null : (time ?? this.time),
       hasReminder: hasReminder ?? this.hasReminder,
       recurrence: recurrence ?? this.recurrence,
-      recurrenceParentId:
-          clearRecurrenceParent ? null : (recurrenceParentId ?? this.recurrenceParentId),
+      recurrenceParentId: clearRecurrenceParent
+          ? null
+          : (recurrenceParentId ?? this.recurrenceParentId),
       sortOrder: sortOrder ?? this.sortOrder,
     );
   }

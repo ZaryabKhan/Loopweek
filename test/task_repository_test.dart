@@ -1,9 +1,8 @@
-import 'dart:async';
-
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:loopweek/data/database/database.dart';
 import 'package:loopweek/data/repositories/task_repository.dart';
+import 'package:loopweek/domain/models/color_tag.dart';
 import 'package:loopweek/domain/models/recurrence.dart';
 import 'package:loopweek/domain/models/task.dart';
 
@@ -318,5 +317,120 @@ void main() {
         expect(more.map((t) => t.date), [_d(2026, 8, 22), _d(2026, 8, 29)]);
       },
     );
+  });
+
+  group('syncFutureOccurrences', () {
+    test(
+      'propagates title/color/reminder changes to future occurrences',
+      () async {
+        final rule = Task(
+          id: 'rule',
+          title: 'Old title',
+          date: _d(2026, 8, 1),
+          recurrence: Recurrence.weekly,
+          hasReminder: false,
+          colorTag: ColorTag.orange,
+        );
+        await repo.insertTask(rule);
+        await repo.materializeOccurrences(
+          rule: rule,
+          start: _d(2026, 8, 1),
+          end: _d(2026, 8, 31),
+        );
+
+        final updated = rule.copyWith(
+          title: 'New title',
+          colorTag: ColorTag.blue,
+          hasReminder: true,
+        );
+        await repo.syncFutureOccurrences(rule: updated, today: _d(2026, 8, 1));
+
+        final occurrences = await repo.getOccurrencesOf('rule');
+        expect(occurrences, isNotEmpty);
+        for (final o in occurrences) {
+          expect(o.title, 'New title');
+          expect(o.colorTag, ColorTag.blue);
+          expect(o.hasReminder, isTrue);
+        }
+      },
+    );
+
+    test('deletes future occurrences when recurrence is turned off', () async {
+      final rule = Task(
+        id: 'rule',
+        title: 'r',
+        date: _d(2026, 8, 1),
+        recurrence: Recurrence.weekly,
+      );
+      await repo.insertTask(rule);
+      await repo.materializeOccurrences(
+        rule: rule,
+        start: _d(2026, 8, 1),
+        end: _d(2026, 8, 31),
+      );
+
+      final stopped = rule.copyWith(recurrence: Recurrence.never);
+      await repo.updateTask(stopped);
+      await repo.syncFutureOccurrences(rule: stopped, today: _d(2026, 8, 8));
+
+      final occurrences = await repo.getOccurrencesOf('rule');
+      expect(occurrences, isEmpty);
+
+      // The anchor rule row still exists.
+      expect((await repo.getTask('rule'))?.recurrence, Recurrence.never);
+    });
+    test('keeps past occurrences as history when rule changes',
+        () async {
+      final rule = Task(
+        id: 'rule',
+        title: 'r',
+        date: _d(2026, 8, 1),
+        recurrence: Recurrence.weekly,
+      );
+      await repo.insertTask(rule);
+      await repo.materializeOccurrences(
+        rule: rule,
+        start: _d(2026, 8, 1),
+        end: _d(2026, 8, 31),
+      );
+
+      // Move the rule to a different weekday. Aug 8 is now "past" and should
+      // stay as history; Aug 15/22/29 no longer match and are replaced by
+      // Wednesday dates.
+      final moved = rule.copyWith(date: _d(2026, 8, 5));
+      await repo.syncFutureOccurrences(rule: moved, today: _d(2026, 8, 15));
+
+      final occurrences = await repo.getOccurrencesOf('rule');
+      final dates = occurrences.map((t) => t.date).toSet();
+      expect(dates, contains(_d(2026, 8, 8))); // past, preserved
+      expect(dates, isNot(contains(_d(2026, 8, 15)))); // old future, removed
+      expect(dates, contains(_d(2026, 8, 19))); // new future, created
+    });
+
+    test('removes dates that no longer match the changed pattern', () async {
+      final rule = Task(
+        id: 'rule',
+        title: 'r',
+        date: _d(2026, 8, 1),
+        recurrence: Recurrence.daily,
+      );
+      await repo.insertTask(rule);
+      await repo.materializeOccurrences(
+        rule: rule,
+        start: _d(2026, 8, 1),
+        end: _d(2026, 8, 10),
+      );
+
+      final weekly = rule.copyWith(recurrence: Recurrence.weekly);
+      await repo.syncFutureOccurrences(rule: weekly, today: _d(2026, 8, 1));
+
+      final occurrences = await repo.getOccurrencesOf('rule');
+      final dates = occurrences.map((t) => t.date).toSet();
+      // Only weekly dates (Aug 8, 15, 22...) remain from the future window.
+      expect(dates, isNot(contains(_d(2026, 8, 2))));
+      expect(dates, isNot(contains(_d(2026, 8, 9))));
+      expect(dates, contains(_d(2026, 8, 8)));
+      expect(dates, contains(_d(2026, 8, 15)));
+    });
   });
 }

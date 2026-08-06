@@ -34,7 +34,8 @@ class HomeWidgetService {
       DateTime.now().day,
     );
     final tasks = await _repository.watchTasksForDate(now).first;
-    final sorted = [...tasks]..sort((a, b) {
+    final sorted = [...tasks]
+      ..sort((a, b) {
         if (a.isCompleted != b.isCompleted) {
           return a.isCompleted ? 1 : -1;
         }
@@ -56,8 +57,7 @@ class HomeWidgetService {
     await HomeWidget.saveWidgetData(_kTheme, themeMode.name);
     await HomeWidget.updateWidget(
       androidName: androidName,
-      qualifiedAndroidName:
-          'com.appcodecraft.loopweek.LoopweekWidgetProvider',
+      qualifiedAndroidName: 'com.appcodecraft.loopweek.LoopweekWidgetProvider',
     );
   }
 
@@ -75,11 +75,10 @@ class HomeWidgetService {
 String _encodeTask(Task t) =>
     '${t.id}|${t.isCompleted ? 1 : 0}|${t.title}|${_encodeTime(t)}';
 
-String _encodeTime(Task t) =>
-    t.hasTime && t.time != null
-        ? '${t.time!.hour.toString().padLeft(2, '0')}:'
-            '${t.time!.minute.toString().padLeft(2, '0')}'
-        : '';
+String _encodeTime(Task t) => t.hasTime && t.time != null
+    ? '${t.time!.hour.toString().padLeft(2, '0')}:'
+          '${t.time!.minute.toString().padLeft(2, '0')}'
+    : '';
 
 extension _ColorRGB on ColorTag {
   String get encoded {

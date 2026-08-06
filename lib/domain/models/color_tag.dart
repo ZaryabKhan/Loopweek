@@ -29,9 +29,9 @@ enum ColorTag {
   }
 
   String get name => switch (this) {
-        ColorTag.orange => 'orange',
-        ColorTag.pink => 'pink',
-        ColorTag.blue => 'blue',
-        ColorTag.green => 'green',
-      };
+    ColorTag.orange => 'orange',
+    ColorTag.pink => 'pink',
+    ColorTag.blue => 'blue',
+    ColorTag.green => 'green',
+  };
 }

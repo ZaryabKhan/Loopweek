@@ -48,10 +48,7 @@ class DayHeader extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      weekdayName.toUpperCase(),
-                      style: headingStyle,
-                    ),
+                    Text(weekdayName.toUpperCase(), style: headingStyle),
                     const SizedBox(height: 2),
                     Text(monthDay, style: subStyle),
                   ],
@@ -84,10 +81,7 @@ class _TodayDot extends StatelessWidget {
       width: 8,
       height: 8,
       margin: const EdgeInsets.only(right: 10, bottom: 4),
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        color: accent,
-      ),
+      decoration: BoxDecoration(shape: BoxShape.circle, color: accent),
     );
   }
 }
