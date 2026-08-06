@@ -20,7 +20,12 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    // The Kotlin JVM target is inferred from compileOptions above (AGP 9 / Kotlin 2.2+).
+    // Pin Kotlin to the same JVM target so Java and Kotlin tasks agree.
+    // Uses the running JDK (21 locally, 17 in CI) but emits JVM 17 bytecode.
+    kotlinOptions {
+        jvmTarget = "17"
+    }
+
     // Reads signing creds from android/key.properties when present (gitignored).
     // Built locally for Play Store AAB uploads. CI uses repo secrets instead.
     val keyPropertiesFile = rootProject.file("key.properties")
