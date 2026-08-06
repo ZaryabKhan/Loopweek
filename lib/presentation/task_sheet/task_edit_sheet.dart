@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show debugPrint;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -359,31 +360,31 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
         : DateFormat('EEE, MMM d \u2014 HH:mm').format(fire);
   }
 
+  /// Combines a date-only day with an optional time, falling back to 09:00
+  /// for time-less tasks. Used both for the rule reminder and occurrence
+  /// reminders so the two paths never drift.
+  static DateTime _dateTimeAt(DateTime date, TimeOfDay? time) {
+    return DateTime(
+      date.year,
+      date.month,
+      date.day,
+      time?.hour ?? 9,
+      time?.minute ?? 0,
+    );
+  }
+
   DateTime? _fireDateTime() {
     if (!_hasReminder) return null;
-    DateTime base = _date;
-    if (_hasTime) {
-      base = DateTime(
-        base.year,
-        base.month,
-        base.day,
-        _time.hour,
-        _time.minute,
-      );
-    } else {
-      base = DateTime(base.year, base.month, base.day, 9, 0);
-    }
-    return base.subtract(Duration(days: _reminderOffsetDays));
+    return _dateTimeAt(
+      _date,
+      _hasTime ? _time : null,
+    ).subtract(Duration(days: _reminderOffsetDays));
   }
 
   /// Fire time for a materialized occurrence: its own date + time, falling
   /// back to 09:00 for time-less tasks (same fallback as [_fireDateTime]).
   DateTime _occurrenceFire(Task occurrence) {
-    final d = occurrence.date;
-    final t = occurrence.time;
-    return t == null
-        ? DateTime(d.year, d.month, d.day, 9)
-        : DateTime(d.year, d.month, d.day, t.hour, t.minute);
+    return _dateTimeAt(occurrence.date, occurrence.time);
   }
 
   Future<void> _toggleReminder(bool v) async {
@@ -425,16 +426,24 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
   Future<void> _onSave() async {
     final title = _titleController.text.trim();
     if (title.isEmpty) {
-      Navigator.of(context).maybePop();
+      _focusNode.requestFocus();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Please enter a task name')),
+        );
+      }
       return;
     }
+
+    if (!mounted) return;
     setState(() => _saving = true);
 
     final repo = ref.read(taskRepositoryProvider);
     final notif = ref.read(notificationServiceProvider);
     final widgetSvc = ref.read(homeWidgetServiceProvider);
-    final accentTag = ref.read(settingsProvider).colorTag;
-    final themeMode = ref.read(settingsProvider).themeMode;
+    final settings = ref.read(settingsProvider);
+    final accentTag = settings.colorTag;
+    final themeMode = settings.themeMode;
 
     final Task edited = widget.task == null
         ? Task(
@@ -459,50 +468,92 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
             colorTag: accentTag,
           );
 
-    final saved = await repo.insertTask(edited);
-
-    // If recurring, materialize occurrences across a generous forward window
-    // so the rest of the week view is populated immediately.
-    var occurrences = const <Task>[];
-    if (saved.recurrence.isRecurring) {
+    try {
+      final saved = await repo.insertTask(edited);
       final today = ref.read(todayProvider);
-      final end = today.add(const Duration(days: 365));
-      await repo.materializeOccurrences(rule: saved, start: today, end: end);
-      // Re-schedule reminders for every occurrence (existing + just-created),
-      // since each is an independent row with its own notification id.
-      occurrences = await repo.getOccurrencesOf(saved.id);
-    }
+      final bool wasRecurring = widget.task?.recurrence.isRecurring ?? false;
+      final bool isRecurring = saved.recurrence.isRecurring;
 
-    if (saved.hasReminder) {
-      final fire = _fireDateTime();
-      if (fire != null) {
-        await notif.scheduleTaskReminder(
-          taskId: saved.id,
-          title: saved.title,
-          scheduled: fire,
-        );
+      // If the user materially changed an existing recurring rule (pattern,
+      // anchor date, or time), future occurrences may no longer match the new
+      // rule. Delete them and let materializeOccurrences recreate them with
+      // the updated pattern. Past occurrences are left untouched as history.
+      if (widget.task != null && wasRecurring) {
+        final ruleChanged =
+            widget.task!.recurrence != saved.recurrence ||
+            widget.task!.date != saved.date ||
+            widget.task!.time != saved.time;
+        if (ruleChanged) {
+          final oldOccurrences = await repo.getOccurrencesOf(widget.task!.id);
+          for (final occurrence in oldOccurrences) {
+            if (occurrence.date.isBefore(today)) continue;
+            await notif.cancelTaskReminder(occurrence.id);
+            await repo.deleteTask(occurrence.id);
+          }
+        }
       }
-      // Each recurring occurrence is an independent row with its own id, so
-      // each one needs its own scheduled reminder. The service skips past
-      // fire times.
-      for (final occurrence in occurrences) {
-        if (!occurrence.hasReminder) continue;
-        await notif.scheduleTaskReminder(
-          taskId: occurrence.id,
-          title: occurrence.title,
-          scheduled: _occurrenceFire(occurrence),
-        );
+
+      // If recurring, materialize occurrences across a generous forward window
+      // so the rest of the week view is populated immediately.
+      var occurrences = const <Task>[];
+      if (isRecurring) {
+        final end = today.add(const Duration(days: 365));
+        await repo.materializeOccurrences(rule: saved, start: today, end: end);
+        // Re-schedule reminders for every occurrence (existing + just-created),
+        // since each is an independent row with its own notification id.
+        occurrences = await repo.getOccurrencesOf(saved.id);
       }
-    } else if (widget.task != null) {
-      await notif.cancelTaskReminder(widget.task!.id);
+
+      // Schedule reminders. If the reminder was turned off for an existing
+      // task, cancel the rule's reminder and every occurrence reminder.
+      if (saved.hasReminder) {
+        final fire = _fireDateTime();
+        if (fire != null) {
+          await notif.scheduleTaskReminder(
+            taskId: saved.id,
+            title: saved.title,
+            scheduled: fire,
+          );
+        }
+        // Each recurring occurrence is an independent row with its own id, so
+        // each one needs its own scheduled reminder. The service skips past
+        // fire times.
+        for (final occurrence in occurrences) {
+          if (!occurrence.hasReminder) continue;
+          await notif.scheduleTaskReminder(
+            taskId: occurrence.id,
+            title: occurrence.title,
+            scheduled: _occurrenceFire(occurrence),
+          );
+        }
+      } else if (widget.task != null) {
+        await notif.cancelTaskReminder(widget.task!.id);
+        if (wasRecurring) {
+          final oldOccurrences = await repo.getOccurrencesOf(widget.task!.id);
+          for (final occurrence in oldOccurrences) {
+            await notif.cancelTaskReminder(occurrence.id);
+          }
+        }
+      }
+
+      // Always refresh the home widget, even if reminder scheduling failed
+      // for some occurrences, so the user's latest task list is visible.
+      await widgetSvc.pushTodaySnapshot(
+        accent: accentTag,
+        themeMode: themeMode,
+      );
+
+      if (mounted) Navigator.of(context).pop(saved);
+    } catch (e, st) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not save task: $e')));
+      }
+      debugPrint('Task save failed: $e\n$st');
+    } finally {
+      if (mounted) setState(() => _saving = false);
     }
-
-    await widgetSvc.pushTodaySnapshot(
-      accent: accentTag,
-      themeMode: themeMode,
-    );
-
-    if (mounted) Navigator.of(context).pop(saved);
   }
 }
 
