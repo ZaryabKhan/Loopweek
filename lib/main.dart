@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:drift/native.dart';
@@ -9,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:loopweek/data/database/database.dart';
+import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/presentation/onboarding/welcome_sheet.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
@@ -23,6 +25,10 @@ Future<void> main() async {
   // Allow the home-screen widget's checkbox taps to toggle completion in a
   // background isolate without opening the app. Registered once at startup.
   HomeWidget.registerInteractivityCallback(_widgetToggleCallback);
+
+  // Kick off notification initialization off the critical path so the corrupt
+  // plugin cache (if any) is cleared before any save tries to cancel/schedule.
+  unawaited(NotificationService().ensureInitialized());
 
   runApp(const ProviderScope(child: LoopweekApp()));
 }
