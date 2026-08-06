@@ -107,13 +107,22 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                     ),
                     TextButton(
                       onPressed: _saving ? null : _onSave,
-                      child: Text(
-                        widget.task == null ? 'Add' : 'Save',
-                        style: TextStyle(
-                          color: accent,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
+                      child: _saving
+                          ? SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: accent,
+                              ),
+                            )
+                          : Text(
+                              widget.task == null ? 'Add' : 'Save',
+                              style: TextStyle(
+                                color: accent,
+                                fontWeight: FontWeight.w700,
+                              ),
+                            ),
                     ),
                   ],
                 ),
@@ -424,6 +433,9 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
   }
 
   Future<void> _onSave() async {
+    // Guard against rapid double-taps before the rebuild disables the button.
+    if (_saving) return;
+
     final title = _titleController.text.trim();
     if (title.isEmpty) {
       _focusNode.requestFocus();
