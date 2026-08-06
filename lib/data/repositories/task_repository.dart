@@ -20,8 +20,13 @@ class TaskRepository {
   Stream<List<Task>> watchTasksForDate(DateTime date) {
     final start = DateTime(date.year, date.month, date.day);
     final end = start.add(const Duration(days: 1));
+    // Half-open range [start, end): `isBetweenValues` is inclusive on both
+    // ends, which would make a task stored at exactly next-day midnight (a
+    // time-less task created for that day) match the previous day too.
     final query = _db.select(_db.tasks)
-      ..where((t) => t.date.isBetweenValues(start, end))
+      ..where(
+        (t) => t.date.isBiggerOrEqualValue(start) & t.date.isSmallerThanValue(end),
+      )
       ..orderBy([
         (t) => OrderingTerm.asc(t.sortOrder),
         (t) => OrderingTerm.asc(t.title),
