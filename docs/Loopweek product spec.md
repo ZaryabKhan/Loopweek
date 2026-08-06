@@ -1,7 +1,5 @@
 # Product Spec — Loopweek (Android, Flutter, Open Source)
 
-Hand this whole document to the AI coding agent as the complete project brief.
-
 ---
 
 ## Project overview
