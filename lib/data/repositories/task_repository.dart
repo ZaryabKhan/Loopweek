@@ -25,7 +25,8 @@ class TaskRepository {
     // time-less task created for that day) match the previous day too.
     final query = _db.select(_db.tasks)
       ..where(
-        (t) => t.date.isBiggerOrEqualValue(start) & t.date.isSmallerThanValue(end),
+        (t) =>
+            t.date.isBiggerOrEqualValue(start) & t.date.isSmallerThanValue(end),
       )
       ..orderBy([
         (t) => OrderingTerm.asc(t.sortOrder),
@@ -105,14 +106,24 @@ class TaskRepository {
     });
   }
 
+  /// Re-persists `sortOrder` for every id in [orderedIds] atomically. Using
+  /// a single Drift batch keeps the writes inside one transaction, so a
+  /// partial failure (or a concurrent reorder/complete) can never leave the
+  /// day's ordering half-applied.
   Future<void> reorderTasksForDate({
     required DateTime date,
     required List<String> orderedIds,
   }) async {
-    for (var i = 0; i < orderedIds.length; i++) {
-      await (_db.update(_db.tasks)..where((t) => t.id.equals(orderedIds[i])))
-          .write(TasksCompanion(sortOrder: Value(i)));
-    }
+    if (orderedIds.isEmpty) return;
+    await _db.batch((batch) {
+      for (var i = 0; i < orderedIds.length; i++) {
+        batch.update(
+          _db.tasks,
+          TasksCompanion(sortOrder: Value(i)),
+          where: (t) => t.id.equals(orderedIds[i]),
+        );
+      }
+    });
   }
 
   // ---- recurrence ---------------------------------------------------------
@@ -120,6 +131,12 @@ class TaskRepository {
   /// Materialize occurrences of [rule] for the window [start..end] (inclusive)
   /// by inserting independent rows linked back to [rule.id]. Existing
   /// occurrences (same rule id + same date) are skipped.
+  ///
+  /// The check-then-insert runs inside a single transaction and the inserts
+  /// use `insertOrIgnore` against the unique index on
+  /// `(recurrence_parent_id, date)`, so concurrent materialization for the
+  /// same rule cannot produce duplicate occurrences and a mid-loop failure
+  /// rolls back the whole batch.
   Future<List<Task>> materializeOccurrences({
     required Task rule,
     required DateTime start,
@@ -136,32 +153,43 @@ class TaskRepository {
 
     if (dates.isEmpty) return const [];
 
-    // Skip dates that already have an occurrence for this rule.
-    final existing = await (_db.select(
-      _db.tasks,
-    )..where((t) => t.recurrenceParentId.equals(rule.id))).get();
-    final existingDates = existing.map((e) => e.date).toSet();
+    return _db.transaction(() async {
+      // Skip dates that already have an occurrence for this rule. The SELECT
+      // is consistent for the whole transaction, so no concurrent writer can
+      // slip a duplicate in between this read and the inserts below.
+      final existing = await (_db.select(
+        _db.tasks,
+      )..where((t) => t.recurrenceParentId.equals(rule.id))).get();
+      final existingDates = existing.map((e) => _dateKey(e.date)).toSet();
 
-    final created = <Task>[];
-    for (final d in dates) {
-      if (existingDates.any(
-        (e) => e.year == d.year && e.month == d.month && e.day == d.day,
-      )) {
-        continue;
+      final created = <Task>[];
+      for (final d in dates) {
+        final key = _dateKey(d);
+        if (existingDates.contains(key)) continue;
+        // Reserve this date so multiple occurrences of the same date within
+        // one batch don't collide.
+        existingDates.add(key);
+        final occurrence = rule.copyWith(
+          id: _uuid.v4(),
+          date: d,
+          isCompleted: false,
+          recurrenceParentId: rule.id,
+          recurrence: Recurrence.never,
+          sortOrder: rule.sortOrder,
+        );
+        await _db
+            .into(_db.tasks)
+            .insert(
+              _mapper.toCompanion(occurrence),
+              mode: InsertMode.insertOrIgnore,
+            );
+        created.add(occurrence);
       }
-      final occurrence = rule.copyWith(
-        id: _uuid.v4(),
-        date: d,
-        isCompleted: false,
-        recurrenceParentId: rule.id,
-        recurrence: Recurrence.never,
-        sortOrder: rule.sortOrder,
-      );
-      await _db.into(_db.tasks).insert(_mapper.toCompanion(occurrence));
-      created.add(occurrence);
-    }
-    return created;
+      return created;
+    });
   }
+
+  static String _dateKey(DateTime d) => '${d.year}-${d.month}-${d.day}';
 
   /// Stop future recurrence of the rule with [parentId] without touching
   /// generated history. Concretely: splits the source rule into a non-recurring
