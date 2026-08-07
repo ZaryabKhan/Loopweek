@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/domain/models/task.dart';
 
 /// Compact trailing "bell + time" indicator shown next to tasks that have a
@@ -121,7 +122,10 @@ class _Checkbox extends StatelessWidget {
     // Opaque hit-test consumes the tap so the row's edit action is not fired.
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
-      onTap: onTap,
+      onTap: () {
+        Haptics.light();
+        onTap();
+      },
       child: SizedBox(
         width: 48,
         height: 48,

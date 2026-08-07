@@ -17,6 +17,7 @@ class SettingsService {
   static const _kOnboardingSeen = 'onboarding.seen';
   static const _kLongPressHintSeen = 'onboarding.longPressHintSeen';
   static const _kAlertsEnabled = 'settings.alertsEnabled';
+  static const _kHapticsEnabled = 'settings.hapticsEnabled';
 
   ColorTag get colorTag => ColorTag.fromName(_prefs.getString(_kColorTag));
   Future<void> setColorTag(ColorTag tag) =>
@@ -53,6 +54,12 @@ class SettingsService {
   bool get alertsEnabled => _prefs.getBool(_kAlertsEnabled) ?? true;
   Future<void> setAlertsEnabled(bool value) =>
       _prefs.setBool(_kAlertsEnabled, value);
+
+  /// Whether haptic feedback is enabled for subtle interactions (checkboxes,
+  /// toggles, accordion taps, etc.). Defaults to true for a premium feel.
+  bool get hapticsEnabled => _prefs.getBool(_kHapticsEnabled) ?? true;
+  Future<void> setHapticsEnabled(bool value) =>
+      _prefs.setBool(_kHapticsEnabled, value);
 
   /// Whether the first-run welcome sheet has been shown (and dismissed).
   bool get onboardingSeen => _prefs.getBool(_kOnboardingSeen) ?? false;

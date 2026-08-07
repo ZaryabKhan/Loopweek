@@ -82,6 +82,7 @@ class ActiveSettings extends ChangeNotifier {
   bool onboardingSeen = false;
   bool longPressHintSeen = false;
   bool alertsEnabled = true;
+  bool hapticsEnabled = true;
   bool isLoaded = false;
   bool _disposed = false;
 
@@ -103,6 +104,7 @@ class ActiveSettings extends ChangeNotifier {
     onboardingSeen = service.onboardingSeen;
     longPressHintSeen = service.longPressHintSeen;
     alertsEnabled = service.alertsEnabled;
+    hapticsEnabled = service.hapticsEnabled;
     isLoaded = true;
     _notify();
   }
@@ -144,6 +146,14 @@ class ActiveSettings extends ChangeNotifier {
     if (sp == null) return;
     await SettingsService(sp).setAlertsEnabled(value);
     alertsEnabled = value;
+    _notify();
+  }
+
+  Future<void> setHapticsEnabled(bool value) async {
+    final sp = _ref.read(sharedPreferencesProvider).valueOrNull;
+    if (sp == null) return;
+    await SettingsService(sp).setHapticsEnabled(value);
+    hapticsEnabled = value;
     _notify();
   }
 

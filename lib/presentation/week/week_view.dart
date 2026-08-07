@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:loopweek/core/haptics/haptics_service.dart';
+
 import 'package:loopweek/domain/models/task.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/week/day_header.dart';
@@ -144,8 +146,11 @@ class _DaySection extends ConsumerStatefulWidget {
 }
 
 class _DaySectionState extends ConsumerState<_DaySection> {
-  void _toggle() => ref.read(expandedDayProvider.notifier).state =
-      widget.isExpanded ? null : widget.date;
+  void _toggle() {
+    Haptics.light();
+    ref.read(expandedDayProvider.notifier).state =
+        widget.isExpanded ? null : widget.date;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -232,6 +237,7 @@ class _Body extends ConsumerWidget {
                   task: t,
                   accent: accent,
                   onToggle: () async {
+                    Haptics.light();
                     final themeMode = settings.themeMode;
                     await repo.setCompleted(
                       id: t.id,
@@ -243,6 +249,7 @@ class _Body extends ConsumerWidget {
                     );
                   },
                   onTap: () async {
+                    Haptics.light();
                     final themeMode = settings.themeMode;
                     final edited = await showModalBottomSheet<Task?>(
                       context: context,
@@ -262,7 +269,10 @@ class _Body extends ConsumerWidget {
                       );
                     }
                   },
-                  onLongPress: () => _showQuickActions(context, ref, t.id),
+                  onLongPress: () {
+                    Haptics.medium();
+                    _showQuickActions(context, ref, t.id);
+                  },
                 ),
               ),
               // Drag the grip to reorder within the day. The grip is the only
@@ -345,6 +355,7 @@ class _Body extends ConsumerWidget {
                 ),
                 title: const Text('Remove task'),
                 onTap: () async {
+                  Haptics.medium();
                   final themeMode = ref.read(settingsProvider).themeMode;
                   await repo.deleteTask(id);
                   // Drop any pending reminder for the removed task.
@@ -366,7 +377,10 @@ class _Body extends ConsumerWidget {
                   color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                 ),
                 title: const Text('Cancel'),
-                onTap: () => Navigator.of(context).pop(),
+                onTap: () {
+                  Haptics.light();
+                  Navigator.of(context).pop();
+                },
               ),
               const SizedBox(height: 8),
             ],
@@ -395,6 +409,8 @@ class _Body extends ConsumerWidget {
         .read(taskRepositoryProvider)
         .reorderTasksForDate(date: date, orderedIds: ordered);
 
+    Haptics.light();
+
     if (isToday) {
       final accentTag = ref.read(settingsProvider).colorTag;
       final themeMode = ref.read(settingsProvider).themeMode;
@@ -414,7 +430,10 @@ class _AddRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return InkWell(
-      onTap: () => _openEditor(context),
+      onTap: () {
+        Haptics.light();
+        _openEditor(context);
+      },
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         child: Row(

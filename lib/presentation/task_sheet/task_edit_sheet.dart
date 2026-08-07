@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/domain/models/recurrence.dart';
 import 'package:loopweek/domain/models/task.dart';
@@ -91,7 +92,10 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).maybePop(),
+                      onPressed: () {
+                        Haptics.light();
+                        Navigator.of(context).maybePop();
+                      },
                       child: Text(
                         'Cancel',
                         style: TextStyle(
@@ -106,7 +110,12 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                       style: theme.textTheme.titleLarge,
                     ),
                     TextButton(
-                      onPressed: _saving ? null : _onSave,
+                      onPressed: _saving
+                          ? null
+                          : () {
+                              Haptics.medium();
+                              _onSave();
+                            },
                       child: _saving
                           ? SizedBox(
                               width: 16,
@@ -233,7 +242,10 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                           Recurrence.daily => 'Daily',
                           Recurrence.weekly => 'Weekly',
                         },
-                        onChanged: (v) => setState(() => _recurrence = v),
+                        onChanged: (v) {
+                          Haptics.selection();
+                          setState(() => _recurrence = v);
+                        },
                       ),
                     ),
                     if (_recurrence == Recurrence.weekly)
@@ -263,7 +275,10 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                       actionText: 'Task has a time',
                       value: _hasTime,
                       accent: accent,
-                      onChanged: (v) => setState(() => _hasTime = v),
+                      onChanged: (v) {
+                        Haptics.light();
+                        setState(() => _hasTime = v);
+                      },
                     ),
                     if (_hasTime)
                       _Row(
@@ -328,8 +343,10 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                               child: Text('2 days before'),
                             ),
                           ],
-                          onChanged: (v) =>
-                              setState(() => _reminderOffsetDays = v ?? 0),
+                          onChanged: (v) {
+                            Haptics.selection();
+                            setState(() => _reminderOffsetDays = v ?? 0);
+                          },
                         ),
                       ),
                     if (_hasReminder && _hasTime)
@@ -450,8 +467,10 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
   }
 
   Future<void> _pickTime() async {
+    Haptics.light();
     final picked = await showTimePicker(context: context, initialTime: _time);
     if (picked != null) {
+      Haptics.selection();
       setState(() => _time = picked);
     }
   }

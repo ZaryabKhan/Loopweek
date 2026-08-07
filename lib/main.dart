@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:loopweek/data/database/database.dart';
+import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/presentation/onboarding/welcome_sheet.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
@@ -57,6 +58,9 @@ class LoopweekApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settings = ref.watch(settingsProvider);
+
+    // Keep the lightweight haptics helper in sync with the user's toggle.
+    Haptics.enabled = settings.hapticsEnabled;
 
     return MaterialApp(
       debugShowCheckedModeBanner: false,

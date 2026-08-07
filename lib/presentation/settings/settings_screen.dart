@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:loopweek/core/dev_links.dart';
+import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
 import 'package:loopweek/presentation/providers.dart';
@@ -71,11 +72,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(dialogContext).pop(),
+            onPressed: () {
+              Haptics.light();
+              Navigator.of(dialogContext).pop();
+            },
             child: const Text('No'),
           ),
           TextButton(
             onPressed: () async {
+              Haptics.medium();
               Navigator.of(dialogContext).pop();
               await _populateDummyData();
               if (mounted) {
@@ -117,7 +122,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         leading: IconButton(
           icon: const Icon(Icons.chevron_left),
           tooltip: 'Back',
-          onPressed: () => Navigator.of(context).maybePop(),
+          onPressed: () {
+            Haptics.light();
+            Navigator.of(context).maybePop();
+          },
         ),
         title: Text('Settings', style: theme.textTheme.headlineMedium),
       ),
@@ -142,6 +150,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _LabelRow('Times & Alerts'),
             const SizedBox(height: 8),
             _TimesAndAlerts(),
+            const SizedBox(height: 24),
+            _LabelRow('Haptics'),
+            const SizedBox(height: 8),
+            _HapticsToggle(),
             const SizedBox(height: 24),
             _LabelRow('Also on your home screen'),
             const SizedBox(height: 8),
@@ -215,7 +227,13 @@ class _LabelRow extends StatelessWidget {
     // hidden gesture count stays undiscoverable to regular users.
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
-      child: GestureDetector(onTap: onTap, child: child),
+      child: GestureDetector(
+        onTap: () {
+          Haptics.light();
+          onTap!();
+        },
+        child: child,
+      ),
     );
   }
 }
@@ -267,7 +285,10 @@ class _DevLinkTile extends StatelessWidget {
         size: 18,
         color: enabled ? onSurface.withValues(alpha: 0.5) : theme.disabledColor,
       ),
-      onTap: () => _open(context),
+      onTap: () {
+        Haptics.light();
+        _open(context);
+      },
     );
   }
 
@@ -305,6 +326,7 @@ class _ColorSwatch extends ConsumerWidget {
           children: [
             InkWell(
               onTap: () async {
+                Haptics.selection();
                 final themeMode = active.themeMode;
                 await active.setColorTag(tag);
                 await ref
@@ -362,6 +384,7 @@ class _ThemeSelector extends ConsumerWidget {
         ThemeMode.dark => 'Dark',
       },
       onChanged: (mode) async {
+        Haptics.selection();
         // The widget receives the raw mode; "system" is resolved natively.
         await active.setThemeMode(mode);
         await ref
@@ -407,6 +430,7 @@ class _TimesAndAlertsState extends ConsumerState<_TimesAndAlerts> {
   }
 
   Future<void> _toggle(bool value) async {
+    Haptics.light();
     final settings = ref.read(settingsProvider);
     if (value) {
       final notif = ref.read(notificationServiceProvider);
@@ -429,6 +453,49 @@ class _TimesAndAlertsState extends ConsumerState<_TimesAndAlerts> {
       // Turning reminders off must also stop the ones already scheduled.
       await ref.read(notificationServiceProvider).cancelAllReminders();
     }
+  }
+}
+
+class _HapticsToggle extends ConsumerStatefulWidget {
+  const _HapticsToggle();
+
+  @override
+  ConsumerState<_HapticsToggle> createState() => _HapticsToggleState();
+}
+
+class _HapticsToggleState extends ConsumerState<_HapticsToggle> {
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final settings = ref.watch(settingsProvider);
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      decoration: BoxDecoration(
+        color: theme.cardTheme.color,
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Subtle vibration feedback on taps and toggles.',
+              style: theme.textTheme.bodyMedium?.copyWith(
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.7),
+              ),
+            ),
+          ),
+          const SizedBox(width: 10),
+          Switch(
+            value: settings.hapticsEnabled,
+            onChanged: (v) async {
+              Haptics.light();
+              await ref.read(settingsProvider).setHapticsEnabled(v);
+              if (v) Haptics.light();
+            },
+          ),
+        ],
+      ),
+    );
   }
 }
 

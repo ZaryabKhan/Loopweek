@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
 import 'package:loopweek/presentation/providers.dart';
@@ -166,7 +167,10 @@ class WelcomeSheet extends ConsumerWidget {
               const SizedBox(height: 24),
 
               FilledButton(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: () {
+                  Haptics.medium();
+                  Navigator.of(context).pop();
+                },
                 style: FilledButton.styleFrom(
                   minimumSize: const Size.fromHeight(48),
                   shape: RoundedRectangleBorder(
@@ -177,7 +181,10 @@ class WelcomeSheet extends ConsumerWidget {
               ),
               Center(
                 child: TextButton(
-                  onPressed: () => Navigator.of(context).pop(),
+                  onPressed: () {
+                    Haptics.light();
+                    Navigator.of(context).pop();
+                  },
                   child: Text(
                     'Skip',
                     style: TextStyle(
@@ -270,6 +277,7 @@ class _Swatch extends ConsumerWidget {
       label: '$_label accent',
       child: InkWell(
         onTap: () async {
+          Haptics.selection();
           final themeMode = ref.read(settingsProvider).themeMode;
           await ref.read(settingsProvider).setColorTag(tag);
           await ref
