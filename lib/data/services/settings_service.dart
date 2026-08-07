@@ -16,6 +16,7 @@ class SettingsService {
   static const _kThemeMode = 'settings.themeMode';
   static const _kOnboardingSeen = 'onboarding.seen';
   static const _kLongPressHintSeen = 'onboarding.longPressHintSeen';
+  static const _kAlertsEnabled = 'settings.alertsEnabled';
 
   ColorTag get colorTag => ColorTag.fromName(_prefs.getString(_kColorTag));
   Future<void> setColorTag(ColorTag tag) =>
@@ -41,6 +42,17 @@ class SettingsService {
         : 'system';
     return _prefs.setString(_kThemeMode, value);
   }
+
+  /// Whether the user has enabled the "Times & Alerts" master switch. This is
+  /// the global gate for Loopweek task reminders.
+  ///
+  /// Defaults to true when the key was never written: that is the upgrade
+  /// path from builds without a master switch, where reminders were armed
+  /// purely per-task — those reminders must keep working. Fresh installs are
+  /// unaffected: nothing happens until the user actually sets a reminder.
+  bool get alertsEnabled => _prefs.getBool(_kAlertsEnabled) ?? true;
+  Future<void> setAlertsEnabled(bool value) =>
+      _prefs.setBool(_kAlertsEnabled, value);
 
   /// Whether the first-run welcome sheet has been shown (and dismissed).
   bool get onboardingSeen => _prefs.getBool(_kOnboardingSeen) ?? false;

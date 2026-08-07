@@ -14,6 +14,7 @@ class Task {
   final bool hasTime;
   final TimeOfDay? time;
   final bool hasReminder;
+  final int reminderOffsetDays;
   final Recurrence recurrence;
   final String? recurrenceParentId;
   final int sortOrder;
@@ -27,6 +28,7 @@ class Task {
     this.hasTime = false,
     this.time,
     this.hasReminder = false,
+    this.reminderOffsetDays = 0,
     this.recurrence = Recurrence.never,
     this.recurrenceParentId,
     this.sortOrder = 0,
@@ -41,6 +43,7 @@ class Task {
     bool? hasTime,
     TimeOfDay? time,
     bool? hasReminder,
+    int? reminderOffsetDays,
     Recurrence? recurrence,
     String? recurrenceParentId,
     int? sortOrder,
@@ -56,6 +59,7 @@ class Task {
       hasTime: hasTime ?? this.hasTime,
       time: clearTime ? null : (time ?? this.time),
       hasReminder: hasReminder ?? this.hasReminder,
+      reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
       recurrence: recurrence ?? this.recurrence,
       recurrenceParentId: clearRecurrenceParent
           ? null

@@ -28,6 +28,36 @@ final notificationServiceProvider = Provider<NotificationService>(
   (ref) => NotificationService(),
 );
 
+/// One-shot startup reconciliation of scheduled reminders against the
+/// database. Watched by the reminder bootstrapper in `main.dart`, so it runs
+/// exactly once per app session: reminders lost to force-stops, plugin cache
+/// wipes, or stale ids from older builds are re-scheduled, and pending
+/// reminders for tasks that no longer need them are cancelled.
+///
+/// The reconciliation respects the Times & Alerts master switch: with the
+/// switch off, reminders must not fire, so any stragglers are cancelled.
+/// Settings load asynchronously; watching [settingsProvider] re-runs this
+/// provider automatically once `load()` completes and notifies, so the early
+/// return below is a temporary no-op, never a skipped sync. Failures are
+/// logged, never surfaced — reminders are a best-effort nicety, not a reason
+/// to break startup.
+final reminderSyncProvider = FutureProvider<void>((ref) async {
+  final settings = ref.watch(settingsProvider);
+  if (!settings.isLoaded) return;
+  try {
+    final notifications = ref.watch(notificationServiceProvider);
+    if (!settings.alertsEnabled) {
+      await notifications.cancelAllReminders();
+      return;
+    }
+    final repo = ref.watch(taskRepositoryProvider);
+    final upcoming = await repo.tasksWithRemindersFrom(DateTime.now());
+    await notifications.syncReminders(upcoming);
+  } catch (e) {
+    debugPrint('Reminder startup sync failed: $e');
+  }
+});
+
 final homeWidgetServiceProvider = Provider<HomeWidgetService>(
   (ref) => HomeWidgetService(ref.watch(taskRepositoryProvider)),
 );
@@ -51,6 +81,7 @@ class ActiveSettings extends ChangeNotifier {
   ThemeMode themeMode = ThemeMode.system;
   bool onboardingSeen = false;
   bool longPressHintSeen = false;
+  bool alertsEnabled = true;
   bool isLoaded = false;
   bool _disposed = false;
 
@@ -71,6 +102,7 @@ class ActiveSettings extends ChangeNotifier {
     themeMode = service.themeMode;
     onboardingSeen = service.onboardingSeen;
     longPressHintSeen = service.longPressHintSeen;
+    alertsEnabled = service.alertsEnabled;
     isLoaded = true;
     _notify();
   }
@@ -104,6 +136,14 @@ class ActiveSettings extends ChangeNotifier {
     if (sp == null) return;
     await SettingsService(sp).setLongPressHintSeen();
     longPressHintSeen = true;
+    _notify();
+  }
+
+  Future<void> setAlertsEnabled(bool value) async {
+    final sp = _ref.read(sharedPreferencesProvider).valueOrNull;
+    if (sp == null) return;
+    await SettingsService(sp).setAlertsEnabled(value);
+    alertsEnabled = value;
     _notify();
   }
 

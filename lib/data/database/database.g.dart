@@ -103,6 +103,17 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     ),
     defaultValue: const Constant(false),
   );
+  static const VerificationMeta _reminderOffsetDaysMeta =
+      const VerificationMeta('reminderOffsetDays');
+  @override
+  late final GeneratedColumn<int> reminderOffsetDays = GeneratedColumn<int>(
+    'reminder_offset_days',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultValue: const Constant(0),
+  );
   static const VerificationMeta _recurrenceMeta = const VerificationMeta(
     'recurrence',
   );
@@ -148,6 +159,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     hasTime,
     timeMinutes,
     hasReminder,
+    reminderOffsetDays,
     recurrence,
     recurrenceParentId,
     sortOrder,
@@ -224,6 +236,15 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         ),
       );
     }
+    if (data.containsKey('reminder_offset_days')) {
+      context.handle(
+        _reminderOffsetDaysMeta,
+        reminderOffsetDays.isAcceptableOrUnknown(
+          data['reminder_offset_days']!,
+          _reminderOffsetDaysMeta,
+        ),
+      );
+    }
     if (data.containsKey('recurrence')) {
       context.handle(
         _recurrenceMeta,
@@ -286,6 +307,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         DriftSqlType.bool,
         data['${effectivePrefix}has_reminder'],
       )!,
+      reminderOffsetDays: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}reminder_offset_days'],
+      )!,
       recurrence: attachedDatabase.typeMapping.read(
         DriftSqlType.string,
         data['${effectivePrefix}recurrence'],
@@ -316,6 +341,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   final bool hasTime;
   final int? timeMinutes;
   final bool hasReminder;
+  final int reminderOffsetDays;
   final String recurrence;
   final String? recurrenceParentId;
   final int sortOrder;
@@ -328,6 +354,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     required this.hasTime,
     this.timeMinutes,
     required this.hasReminder,
+    required this.reminderOffsetDays,
     required this.recurrence,
     this.recurrenceParentId,
     required this.sortOrder,
@@ -345,6 +372,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       map['time_minutes'] = Variable<int>(timeMinutes);
     }
     map['has_reminder'] = Variable<bool>(hasReminder);
+    map['reminder_offset_days'] = Variable<int>(reminderOffsetDays);
     map['recurrence'] = Variable<String>(recurrence);
     if (!nullToAbsent || recurrenceParentId != null) {
       map['recurrence_parent_id'] = Variable<String>(recurrenceParentId);
@@ -365,6 +393,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ? const Value.absent()
           : Value(timeMinutes),
       hasReminder: Value(hasReminder),
+      reminderOffsetDays: Value(reminderOffsetDays),
       recurrence: Value(recurrence),
       recurrenceParentId: recurrenceParentId == null && nullToAbsent
           ? const Value.absent()
@@ -387,6 +416,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       hasTime: serializer.fromJson<bool>(json['hasTime']),
       timeMinutes: serializer.fromJson<int?>(json['timeMinutes']),
       hasReminder: serializer.fromJson<bool>(json['hasReminder']),
+      reminderOffsetDays: serializer.fromJson<int>(json['reminderOffsetDays']),
       recurrence: serializer.fromJson<String>(json['recurrence']),
       recurrenceParentId: serializer.fromJson<String?>(
         json['recurrenceParentId'],
@@ -406,6 +436,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       'hasTime': serializer.toJson<bool>(hasTime),
       'timeMinutes': serializer.toJson<int?>(timeMinutes),
       'hasReminder': serializer.toJson<bool>(hasReminder),
+      'reminderOffsetDays': serializer.toJson<int>(reminderOffsetDays),
       'recurrence': serializer.toJson<String>(recurrence),
       'recurrenceParentId': serializer.toJson<String?>(recurrenceParentId),
       'sortOrder': serializer.toJson<int>(sortOrder),
@@ -421,6 +452,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     bool? hasTime,
     Value<int?> timeMinutes = const Value.absent(),
     bool? hasReminder,
+    int? reminderOffsetDays,
     String? recurrence,
     Value<String?> recurrenceParentId = const Value.absent(),
     int? sortOrder,
@@ -433,6 +465,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     hasTime: hasTime ?? this.hasTime,
     timeMinutes: timeMinutes.present ? timeMinutes.value : this.timeMinutes,
     hasReminder: hasReminder ?? this.hasReminder,
+    reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
     recurrence: recurrence ?? this.recurrence,
     recurrenceParentId: recurrenceParentId.present
         ? recurrenceParentId.value
@@ -455,6 +488,9 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       hasReminder: data.hasReminder.present
           ? data.hasReminder.value
           : this.hasReminder,
+      reminderOffsetDays: data.reminderOffsetDays.present
+          ? data.reminderOffsetDays.value
+          : this.reminderOffsetDays,
       recurrence: data.recurrence.present
           ? data.recurrence.value
           : this.recurrence,
@@ -476,6 +512,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ..write('hasTime: $hasTime, ')
           ..write('timeMinutes: $timeMinutes, ')
           ..write('hasReminder: $hasReminder, ')
+          ..write('reminderOffsetDays: $reminderOffsetDays, ')
           ..write('recurrence: $recurrence, ')
           ..write('recurrenceParentId: $recurrenceParentId, ')
           ..write('sortOrder: $sortOrder')
@@ -493,6 +530,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     hasTime,
     timeMinutes,
     hasReminder,
+    reminderOffsetDays,
     recurrence,
     recurrenceParentId,
     sortOrder,
@@ -509,6 +547,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           other.hasTime == this.hasTime &&
           other.timeMinutes == this.timeMinutes &&
           other.hasReminder == this.hasReminder &&
+          other.reminderOffsetDays == this.reminderOffsetDays &&
           other.recurrence == this.recurrence &&
           other.recurrenceParentId == this.recurrenceParentId &&
           other.sortOrder == this.sortOrder);
@@ -523,6 +562,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   final Value<bool> hasTime;
   final Value<int?> timeMinutes;
   final Value<bool> hasReminder;
+  final Value<int> reminderOffsetDays;
   final Value<String> recurrence;
   final Value<String?> recurrenceParentId;
   final Value<int> sortOrder;
@@ -536,6 +576,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.hasTime = const Value.absent(),
     this.timeMinutes = const Value.absent(),
     this.hasReminder = const Value.absent(),
+    this.reminderOffsetDays = const Value.absent(),
     this.recurrence = const Value.absent(),
     this.recurrenceParentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -550,6 +591,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.hasTime = const Value.absent(),
     this.timeMinutes = const Value.absent(),
     this.hasReminder = const Value.absent(),
+    this.reminderOffsetDays = const Value.absent(),
     this.recurrence = const Value.absent(),
     this.recurrenceParentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
@@ -566,6 +608,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Expression<bool>? hasTime,
     Expression<int>? timeMinutes,
     Expression<bool>? hasReminder,
+    Expression<int>? reminderOffsetDays,
     Expression<String>? recurrence,
     Expression<String>? recurrenceParentId,
     Expression<int>? sortOrder,
@@ -580,6 +623,8 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       if (hasTime != null) 'has_time': hasTime,
       if (timeMinutes != null) 'time_minutes': timeMinutes,
       if (hasReminder != null) 'has_reminder': hasReminder,
+      if (reminderOffsetDays != null)
+        'reminder_offset_days': reminderOffsetDays,
       if (recurrence != null) 'recurrence': recurrence,
       if (recurrenceParentId != null)
         'recurrence_parent_id': recurrenceParentId,
@@ -597,6 +642,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Value<bool>? hasTime,
     Value<int?>? timeMinutes,
     Value<bool>? hasReminder,
+    Value<int>? reminderOffsetDays,
     Value<String>? recurrence,
     Value<String?>? recurrenceParentId,
     Value<int>? sortOrder,
@@ -611,6 +657,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       hasTime: hasTime ?? this.hasTime,
       timeMinutes: timeMinutes ?? this.timeMinutes,
       hasReminder: hasReminder ?? this.hasReminder,
+      reminderOffsetDays: reminderOffsetDays ?? this.reminderOffsetDays,
       recurrence: recurrence ?? this.recurrence,
       recurrenceParentId: recurrenceParentId ?? this.recurrenceParentId,
       sortOrder: sortOrder ?? this.sortOrder,
@@ -645,6 +692,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     if (hasReminder.present) {
       map['has_reminder'] = Variable<bool>(hasReminder.value);
     }
+    if (reminderOffsetDays.present) {
+      map['reminder_offset_days'] = Variable<int>(reminderOffsetDays.value);
+    }
     if (recurrence.present) {
       map['recurrence'] = Variable<String>(recurrence.value);
     }
@@ -671,6 +721,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
           ..write('hasTime: $hasTime, ')
           ..write('timeMinutes: $timeMinutes, ')
           ..write('hasReminder: $hasReminder, ')
+          ..write('reminderOffsetDays: $reminderOffsetDays, ')
           ..write('recurrence: $recurrence, ')
           ..write('recurrenceParentId: $recurrenceParentId, ')
           ..write('sortOrder: $sortOrder, ')
@@ -701,6 +752,7 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<bool> hasTime,
       Value<int?> timeMinutes,
       Value<bool> hasReminder,
+      Value<int> reminderOffsetDays,
       Value<String> recurrence,
       Value<String?> recurrenceParentId,
       Value<int> sortOrder,
@@ -716,6 +768,7 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<bool> hasTime,
       Value<int?> timeMinutes,
       Value<bool> hasReminder,
+      Value<int> reminderOffsetDays,
       Value<String> recurrence,
       Value<String?> recurrenceParentId,
       Value<int> sortOrder,
@@ -768,6 +821,11 @@ class $$TasksTableFilterComposer
 
   ColumnFilters<bool> get hasReminder => $composableBuilder(
     column: $table.hasReminder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get reminderOffsetDays => $composableBuilder(
+    column: $table.reminderOffsetDays,
     builder: (column) => ColumnFilters(column),
   );
 
@@ -836,6 +894,11 @@ class $$TasksTableOrderingComposer
     builder: (column) => ColumnOrderings(column),
   );
 
+  ColumnOrderings<int> get reminderOffsetDays => $composableBuilder(
+    column: $table.reminderOffsetDays,
+    builder: (column) => ColumnOrderings(column),
+  );
+
   ColumnOrderings<String> get recurrence => $composableBuilder(
     column: $table.recurrence,
     builder: (column) => ColumnOrderings(column),
@@ -891,6 +954,11 @@ class $$TasksTableAnnotationComposer
     builder: (column) => column,
   );
 
+  GeneratedColumn<int> get reminderOffsetDays => $composableBuilder(
+    column: $table.reminderOffsetDays,
+    builder: (column) => column,
+  );
+
   GeneratedColumn<String> get recurrence => $composableBuilder(
     column: $table.recurrence,
     builder: (column) => column,
@@ -941,6 +1009,7 @@ class $$TasksTableTableManager
                 Value<bool> hasTime = const Value.absent(),
                 Value<int?> timeMinutes = const Value.absent(),
                 Value<bool> hasReminder = const Value.absent(),
+                Value<int> reminderOffsetDays = const Value.absent(),
                 Value<String> recurrence = const Value.absent(),
                 Value<String?> recurrenceParentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
@@ -954,6 +1023,7 @@ class $$TasksTableTableManager
                 hasTime: hasTime,
                 timeMinutes: timeMinutes,
                 hasReminder: hasReminder,
+                reminderOffsetDays: reminderOffsetDays,
                 recurrence: recurrence,
                 recurrenceParentId: recurrenceParentId,
                 sortOrder: sortOrder,
@@ -969,6 +1039,7 @@ class $$TasksTableTableManager
                 Value<bool> hasTime = const Value.absent(),
                 Value<int?> timeMinutes = const Value.absent(),
                 Value<bool> hasReminder = const Value.absent(),
+                Value<int> reminderOffsetDays = const Value.absent(),
                 Value<String> recurrence = const Value.absent(),
                 Value<String?> recurrenceParentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
@@ -982,6 +1053,7 @@ class $$TasksTableTableManager
                 hasTime: hasTime,
                 timeMinutes: timeMinutes,
                 hasReminder: hasReminder,
+                reminderOffsetDays: reminderOffsetDays,
                 recurrence: recurrence,
                 recurrenceParentId: recurrenceParentId,
                 sortOrder: sortOrder,

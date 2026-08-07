@@ -433,4 +433,33 @@ void main() {
       expect(dates, contains(_d(2026, 8, 15)));
     });
   });
+
+  group('tasksWithRemindersFrom', () {
+    Task reminderTask(String id, DateTime date) =>
+        Task(id: id, title: id, date: date, hasReminder: true);
+
+    test('returns only reminder tasks on or after the boundary day', () async {
+      await repo.insertTask(reminderTask('past', _d(2026, 8, 1)));
+      await repo.insertTask(reminderTask('today', _d(2026, 8, 8)));
+      await repo.insertTask(reminderTask('future', _d(2026, 8, 15)));
+      await repo.insertTask(_task('no-reminder', _d(2026, 8, 9)));
+
+      final got = await repo.tasksWithRemindersFrom(_d(2026, 8, 8));
+      final ids = got.map((t) => t.id);
+
+      expect(ids, containsAll(['today', 'future']));
+      expect(ids, isNot(contains('past')));
+      expect(ids, isNot(contains('no-reminder')));
+    });
+
+    test('a midnight task counts for the boundary day even when queried '
+        'later that same day', () async {
+      await repo.insertTask(reminderTask('edge', _d(2026, 8, 8)));
+
+      final got = await repo.tasksWithRemindersFrom(
+        DateTime(2026, 8, 8, 13, 30),
+      );
+      expect(got.map((t) => t.id), contains('edge'));
+    });
+  });
 }

@@ -16,7 +16,7 @@ class LoopweekDatabase extends _$LoopweekDatabase {
   LoopweekDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -34,6 +34,12 @@ class LoopweekDatabase extends _$LoopweekDatabase {
           '  WHERE recurrence_parent_id IS NOT NULL '
           '  GROUP BY recurrence_parent_id, date'
           ');',
+        );
+      }
+      if (from < 3) {
+        // Added reminder_offset_days to persist the reminder lead time.
+        await customStatement(
+          'ALTER TABLE tasks ADD COLUMN reminder_offset_days INTEGER NOT NULL DEFAULT 0;',
         );
       }
     },

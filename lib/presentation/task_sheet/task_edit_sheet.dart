@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
+import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/domain/models/recurrence.dart';
 import 'package:loopweek/domain/models/task.dart';
 import 'package:loopweek/presentation/providers.dart';
@@ -34,7 +35,7 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
   late bool _hasTime = widget.task?.hasTime ?? false;
   late TimeOfDay _time = widget.task?.time ?? TimeOfDay.now();
   late bool _hasReminder = widget.task?.hasReminder ?? false;
-  late int _reminderOffsetDays = 0;
+  late int _reminderOffsetDays = widget.task?.reminderOffsetDays ?? 0;
 
   final _focusNode = FocusNode();
   bool _saving = false;
@@ -389,10 +390,10 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
     ).subtract(Duration(days: _reminderOffsetDays));
   }
 
-  /// Fire time for a materialized occurrence: its own date + time, falling
-  /// back to 09:00 for time-less tasks (same fallback as [_fireDateTime]).
+  /// Fire time for a materialized occurrence: uses the canonical service
+  /// helper so the save flow and startup reconciler always agree.
   DateTime _occurrenceFire(Task occurrence) {
-    return _dateTimeAt(occurrence.date, occurrence.time);
+    return NotificationService.fireDateTimeFor(occurrence);
   }
 
   Future<void> _toggleReminder(bool v) async {
@@ -400,14 +401,38 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
       setState(() => _hasReminder = false);
       return;
     }
-    final prefs = ref.read(notificationServiceProvider);
-    final granted = await prefs.requestPermission();
-    if (!granted && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Notifications were not allowed.')),
-      );
-      return;
+
+    final settings = ref.read(settingsProvider);
+    final notif = ref.read(notificationServiceProvider);
+
+    // Make the alerts master switch active if it wasn't already, and request
+    // the OS notification permission. The spec forbids asking at startup, but
+    // this is the user's explicit opt-in moment.
+    if (!settings.alertsEnabled) {
+      final granted = await notif.requestPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Notifications were not allowed.')),
+          );
+        }
+        return;
+      }
+      await settings.setAlertsEnabled(true);
+    } else {
+      // Re-check permission in case the user revoked it system-side since the
+      // last reminder was set.
+      final granted = await notif.requestPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Notifications were not allowed.')),
+          );
+        }
+        return;
+      }
     }
+
     setState(() => _hasReminder = true);
   }
 
@@ -465,6 +490,7 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
             hasTime: _hasTime,
             time: _hasTime ? _time : null,
             hasReminder: _hasReminder,
+            reminderOffsetDays: _reminderOffsetDays,
             recurrence: _recurrence,
             sortOrder: 0,
           )
@@ -475,6 +501,7 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
             time: _hasTime ? _time : null,
             clearTime: !_hasTime,
             hasReminder: _hasReminder,
+            reminderOffsetDays: _reminderOffsetDays,
             recurrence: _recurrence,
             colorTag: accentTag,
           );
@@ -510,10 +537,30 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
       }
 
       // Schedule reminders. If the reminder was turned off for an existing
-      // task, cancel the rule's reminder and every occurrence reminder.
-      if (saved.hasReminder) {
-        final fire = _fireDateTime();
-        if (fire != null) {
+      // task, or if notifications are disabled/permission denied, cancel the
+      // rule's reminder and every occurrence reminder.
+      final settings = ref.read(settingsProvider);
+      final canRemind = saved.hasReminder &&
+          settings.alertsEnabled &&
+          await notif.requestPermission();
+      if (!canRemind) {
+        await notif.cancelTaskReminder(saved.id);
+        for (final occurrence in occurrences) {
+          await notif.cancelTaskReminder(occurrence.id);
+        }
+        if (saved.hasReminder && mounted) {
+          // Tell the user exactly which gate blocked the reminder.
+          final message = settings.alertsEnabled
+              ? 'Notifications are blocked. Allow them in Android settings '
+                  'to get reminders.'
+              : 'Turn on Times & Alerts in Settings to receive reminders.';
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(message)));
+        }
+      } else {
+        final fire = NotificationService.fireDateTimeFor(saved);
+        if (fire.isAfter(DateTime.now())) {
           await notif.scheduleTaskReminder(
             taskId: saved.id,
             title: saved.title,
@@ -531,8 +578,6 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
             scheduled: _occurrenceFire(occurrence),
           );
         }
-      } else if (widget.task != null) {
-        await notif.cancelTaskReminder(widget.task!.id);
       }
 
       // Always refresh the home widget, even if reminder scheduling failed

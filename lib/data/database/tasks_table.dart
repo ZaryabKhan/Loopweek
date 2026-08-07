@@ -15,6 +15,7 @@ class Tasks extends Table {
   BoolColumn get hasTime => boolean().withDefault(const Constant(false))();
   IntColumn get timeMinutes => integer().nullable()();
   BoolColumn get hasReminder => boolean().withDefault(const Constant(false))();
+  IntColumn get reminderOffsetDays => integer().withDefault(const Constant(0))();
   TextColumn get recurrence => text().withDefault(const Constant('never'))();
   TextColumn get recurrenceParentId => text().nullable()();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();

@@ -25,6 +25,7 @@ dependencies:
 
   # Notifications
   flutter_local_notifications: ^17.2.2
+  flutter_timezone: ^5.1.0
   timezone: ^0.9.4
 
   # Home screen widget (Android App Widget)

@@ -10,7 +10,6 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:loopweek/data/database/database.dart';
-import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/presentation/onboarding/welcome_sheet.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
@@ -25,10 +24,6 @@ Future<void> main() async {
   // Allow the home-screen widget's checkbox taps to toggle completion in a
   // background isolate without opening the app. Registered once at startup.
   HomeWidget.registerInteractivityCallback(_widgetToggleCallback);
-
-  // Kick off notification initialization off the critical path so the corrupt
-  // plugin cache (if any) is cleared before any save tries to cancel/schedule.
-  unawaited(NotificationService().ensureInitialized());
 
   runApp(const ProviderScope(child: LoopweekApp()));
 }
@@ -72,9 +67,47 @@ class LoopweekApp extends ConsumerWidget {
       home: OnboardingGate(
         child: KeyedSubtree(
           key: ValueKey(settings.colorTag),
-          child: const WeekView(),
+          child: const ReminderBootstrapper(child: WeekView()),
         ),
       ),
     );
   }
+}
+
+/// Runs the one-shot reminder reconciliation right after the first frame.
+///
+/// Scheduled notifications are the one feature that can be silently lost
+/// behind the app's back (force-stop, plugin cache wipe, alarms dropped by
+/// the OS, ids from an older build). Reconciling against the database on
+/// every start makes reminders self-healing instead.
+class ReminderBootstrapper extends ConsumerStatefulWidget {
+  const ReminderBootstrapper({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<ReminderBootstrapper> createState() =>
+      _ReminderBootstrapperState();
+}
+
+class _ReminderBootstrapperState extends ConsumerState<ReminderBootstrapper> {
+  /// The subtree is re-keyed whenever the accent color changes; the sync must
+  /// still run only once per process.
+  static bool _syncStarted = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_syncStarted) return;
+    _syncStarted = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      // Kick-and-forget: the provider captures the result (and any error is
+      // logged inside the provider itself, never thrown here).
+      unawaited(ref.read(reminderSyncProvider.future));
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }

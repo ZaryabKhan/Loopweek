@@ -378,42 +378,10 @@ class _TimesAndAlerts extends ConsumerStatefulWidget {
 }
 
 class _TimesAndAlertsState extends ConsumerState<_TimesAndAlerts> {
-  bool _alerts = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _load();
-  }
-
-  Future<void> _load() async {
-    final sp = await ref.read(sharedPreferencesProvider.future);
-    setState(() {
-      _alerts = sp.getBool('settings.alertsEnabled') ?? false;
-    });
-  }
-
-  Future<void> _toggle(bool value) async {
-    if (value) {
-      final notif = ref.read(notificationServiceProvider);
-      final granted = await notif.requestPermission();
-      if (!granted) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Notifications were not allowed.')),
-          );
-        }
-        return;
-      }
-    }
-    final sp = await ref.read(sharedPreferencesProvider.future);
-    await sp.setBool('settings.alertsEnabled', value);
-    setState(() => _alerts = value);
-  }
-
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final settings = ref.watch(settingsProvider);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
@@ -432,10 +400,35 @@ class _TimesAndAlertsState extends ConsumerState<_TimesAndAlerts> {
             ),
           ),
           const SizedBox(width: 10),
-          Switch(value: _alerts, onChanged: _toggle),
+          Switch(value: settings.alertsEnabled, onChanged: _toggle),
         ],
       ),
     );
+  }
+
+  Future<void> _toggle(bool value) async {
+    final settings = ref.read(settingsProvider);
+    if (value) {
+      final notif = ref.read(notificationServiceProvider);
+      final granted = await notif.requestPermission();
+      if (!granted) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Notifications were not allowed.')),
+          );
+        }
+        return;
+      }
+    }
+    await settings.setAlertsEnabled(value);
+    if (value) {
+      // Re-arm any reminders that are stored but not currently scheduled
+      // (e.g. lost while the switch was off).
+      ref.invalidate(reminderSyncProvider);
+    } else {
+      // Turning reminders off must also stop the ones already scheduled.
+      await ref.read(notificationServiceProvider).cancelAllReminders();
+    }
   }
 }
 

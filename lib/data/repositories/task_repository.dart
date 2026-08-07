@@ -60,6 +60,21 @@ class TaskRepository {
     return rows.map(_mapper.toDomain).toList();
   }
 
+  /// Every row that carries a reminder and whose date is on or after the
+  /// start of [date]'s day — standalone tasks, recurring rules, and
+  /// materialized occurrences alike. Feeds the startup reminder reconciler,
+  /// which re-schedules anything the OS or the plugin lost.
+  Future<List<Task>> tasksWithRemindersFrom(DateTime date) async {
+    final start = DateTime(date.year, date.month, date.day);
+    final rows = await (_db.select(_db.tasks)
+          ..where(
+            (t) =>
+                t.hasReminder.equals(true) &
+                t.date.isBiggerOrEqualValue(start),
+          )).get();
+    return rows.map(_mapper.toDomain).toList();
+  }
+
   // ---- write --------------------------------------------------------------
 
   Future<Task> insertTask(Task task) async {
@@ -175,6 +190,7 @@ class TaskRepository {
           isCompleted: false,
           recurrenceParentId: rule.id,
           recurrence: Recurrence.never,
+          reminderOffsetDays: rule.reminderOffsetDays,
           sortOrder: rule.sortOrder,
         );
         await _db
@@ -254,6 +270,7 @@ class TaskRepository {
           time: rule.time,
           clearTime: !rule.hasTime,
           hasReminder: rule.hasReminder,
+          reminderOffsetDays: rule.reminderOffsetDays,
           sortOrder: rule.sortOrder,
         );
         batch.update(

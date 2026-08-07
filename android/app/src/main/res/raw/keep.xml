@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Release builds run R8 resource shrinking, which drops resources only
+     referenced from code strings. Loopweek's notification icon
+     (@mipmap/ic_launcher, passed to flutter_local_notifications from Dart)
+     is invisible to the shrinker, and a stripped icon makes scheduled
+     notifications silently never show. Keep it, plus the drawables used by
+     the home-screen widget's RemoteViews. -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@mipmap/ic_launcher,@drawable/*" />
