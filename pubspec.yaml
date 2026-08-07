@@ -1,7 +1,7 @@
 name: loopweek
 description: "Loopweek — a free, open-source weekly to-do app for Android. One screen, seven days, nothing else."
 publish_to: "none"
-version: 1.0.2+3
+version: 1.0.3+4
 
 environment:
   sdk: ^3.11.4
