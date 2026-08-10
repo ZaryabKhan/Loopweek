@@ -59,12 +59,12 @@ jobs:
           keyPassword=${{ secrets.RELEASE_KEY_PASSWORD }}
           EOF
 
-      - name: Build signed release APK
-        run: flutter build apk --release
+      - name: Build signed release APK (github flavor)
+        run: flutter build apk --flavor github --dart-define=DONATION_MODE=polar --release
 
       - name: Prepare release artifact
         run: |
-          APK=$(find build/app/outputs/flutter-apk -name '*.apk' | head -1)
+          APK=$(find build/app/outputs/flutter-apk -name 'app-github-release.apk' | head -1)
           cp "$APK" "Loopweek-${GITHUB_REF_NAME}.apk"
           ls -lh "Loopweek-${GITHUB_REF_NAME}.apk"
 

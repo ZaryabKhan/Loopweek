@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:loopweek/core/dev_links.dart';
+import 'package:loopweek/core/donation_mode.dart';
 import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
 import 'package:loopweek/presentation/providers.dart';
+import 'package:loopweek/presentation/settings/donation_sheet.dart';
 import 'package:loopweek/presentation/settings/dummy_data.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
@@ -189,12 +191,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: 'Developer profile',
               url: DevLinks.playStore,
             ),
-            _DevLinkTile(
-              icon: Icons.favorite,
-              title: 'Support Loopweek',
-              subtitle: 'Buy me a coffee',
-              url: DevLinks.support,
-            ),
+            if (donationMode == DonationMode.iap) ...[
+              _IapDonationTile(),
+            ] else
+              _DevLinkTile(
+                icon: Icons.favorite,
+                title: 'Support Loopweek',
+                subtitle: 'Buy me a coffee',
+                url: DevLinks.support,
+              ),
           ],
         ),
       ),
@@ -306,6 +311,43 @@ class _DevLinkTile extends StatelessWidget {
         context,
       ).showSnackBar(const SnackBar(content: Text("Couldn't open the link.")));
     }
+  }
+}
+
+/// Play Store donation entry: same visual signature as [_DevLinkTile] but
+/// opens the in-app tip sheet instead of an external URL. Replaces the
+/// polar.sh tile when [donationMode] is [DonationMode.iap] so the polar link
+/// is unreachable on the playstore flavor.
+class _IapDonationTile extends StatelessWidget {
+  const _IapDonationTile();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: Icon(Icons.favorite, color: theme.colorScheme.primary),
+      title: Text(
+        'Support Loopweek',
+        style: theme.textTheme.titleMedium?.copyWith(color: onSurface),
+      ),
+      subtitle: Text(
+        'Buy me a coffee',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: onSurface.withValues(alpha: 0.6),
+        ),
+      ),
+      trailing: Icon(
+        Icons.keyboard_arrow_up_rounded,
+        size: 22,
+        color: onSurface.withValues(alpha: 0.5),
+      ),
+      onTap: () {
+        Haptics.light();
+        showDonationSheet(context);
+      },
+    );
   }
 }
 

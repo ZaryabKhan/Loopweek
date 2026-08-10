@@ -65,6 +65,27 @@ android {
                 else signingConfigs.getByName("debug")
         }
     }
+
+    // Distribution channels: the same source ships to GitHub Releases
+    // (`github` flavor → polar.sh donation link visible in Settings) and to
+    // Google Play (`playstore` flavor → in-app purchase tip tiers instead of
+    // any external donation link, per Play policy on digital purchases).
+    //
+    // Build commands:
+    //   flutter build apk       --flavor github    --dart-define=DONATION_MODE=polar
+    //   flutter build appbundle --flavor playstore --dart-define=DONATION_MODE=iap
+    //
+    // During local dev use `--flavor github` (the default Dart side falls
+    // back to the polar path when no DONATION_MODE is supplied).
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("github") {
+            dimension = "distribution"
+        }
+        create("playstore") {
+            dimension = "distribution"
+        }
+    }
 }
 
 dependencies {

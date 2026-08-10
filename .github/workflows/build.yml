@@ -40,12 +40,12 @@ jobs:
       - name: Run tests
         run: flutter test
 
-      - name: Build debug APK
-        run: flutter build apk --debug
+      - name: Build debug APK (github flavor)
+        run: flutter build apk --flavor github --dart-define=DONATION_MODE=polar --debug
 
       - name: Upload debug APK
         uses: actions/upload-artifact@v5
         with:
           name: loopweek-debug-apk
-          path: build/app/outputs/flutter-apk/app-debug.apk
+          path: build/app/outputs/flutter-apk/app-github-debug.apk
           retention-days: 14
