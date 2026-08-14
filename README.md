@@ -6,6 +6,8 @@
 
 <p align="center">
   <a href="https://buy.polar.sh/polar_cl_J3Nnh3YVrN1jMh8GdYaqZD3FjKvg9lsyR3eih1FkRt8"><img src="https://img.shields.io/badge/Donate-Loopweek-blue.svg?style=for-the-badge" alt="Donate"></a>
+  <a href="https://play.google.com/store/apps/details?id=com.appcodecraft.loopweek"><img src="https://img.shields.io/badge/Google%20Play-414141?style=for-the-badge&logo=google-play&logoColor=white" alt="Google Play"></a>
+  <a href="https://github.com/ZaryabKhan/loopweek/releases/latest"><img src="https://img.shields.io/badge/Download%20APK-848484?style=for-the-badge&logo=android&logoColor=white" alt="Download APK"></a>
 </p>
 
 <p align="center">
