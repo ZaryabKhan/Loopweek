@@ -19,6 +19,7 @@ class Tasks extends Table {
   TextColumn get recurrence => text().withDefault(const Constant('never'))();
   TextColumn get recurrenceParentId => text().nullable()();
   IntColumn get sortOrder => integer().withDefault(const Constant(0))();
+  BoolColumn get isSomeday => boolean().withDefault(const Constant(false))();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

@@ -1,12 +1,63 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_timezone/flutter_timezone.dart';
+import 'package:intl/intl.dart';
 import 'package:loopweek/domain/models/task.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
 import 'package:timezone/timezone.dart' as tz;
+
+/// What the user did with a reminder notification. [actionId] mirrors the
+/// plugin's `NotificationResponse.actionId`; a null id is a plain body tap.
+enum ReminderAction {
+  markDone('mark_done'),
+  remindTomorrow('remind_tomorrow'),
+  open(null);
+
+  const ReminderAction(this.actionId);
+
+  final String? actionId;
+
+  static ReminderAction fromActionId(String? actionId) =>
+      ReminderAction.values.firstWhere(
+        (action) => action.actionId == actionId,
+        orElse: () => ReminderAction.open,
+      );
+}
+
+/// Data carried by every reminder notification payload (JSON): the notified
+/// task row's id and its date, so handlers can act on the exact row without
+/// re-deriving anything.
+class ReminderPayload {
+  const ReminderPayload({required this.taskId, required this.taskDate});
+
+  final String taskId;
+  final DateTime taskDate;
+
+  static ReminderPayload? tryDecode(String? raw) {
+    if (raw == null || raw.isEmpty) return null;
+    try {
+      final Object? decoded = jsonDecode(raw);
+      if (decoded is! Map || decoded['taskId'] is! String) return null;
+      final date = DateTime.tryParse(decoded['date'] as String? ?? '');
+      if (date == null) return null;
+      return ReminderPayload(
+        taskId: decoded['taskId'] as String,
+        taskDate: DateTime(date.year, date.month, date.day),
+      );
+    } catch (_) {
+      return null;
+    }
+  }
+
+  String encode() => jsonEncode({
+        'taskId': taskId,
+        'date': DateFormat('yyyy-MM-dd').format(taskDate),
+      });
+}
 
 /// Thin wrapper around `flutter_local_notifications` for scheduling optional
 /// per-task reminders. No permissions are requested at startup — the spec
@@ -28,6 +79,10 @@ import 'package:timezone/timezone.dart' as tz;
 ///   per app start, so reminders self-heal after force-stops, cache wipes,
 ///   or any other lost-alarm scenario.
 ///
+/// Notifications carry "Mark done" and "Remind tomorrow" actions. Presses
+/// arrive via [ReminderAction]; the service only parses and forwards them —
+/// the UI layer (main.dart) owns what actually happens.
+///
 /// Android note: the app's `AndroidManifest.xml` must declare the plugin's
 /// `ScheduledNotificationReceiver` and `ScheduledNotificationBootReceiver`
 /// (required since plugin v16), otherwise scheduled notifications never show.
@@ -38,6 +93,23 @@ class NotificationService {
   static const MethodChannel _cacheChannel = MethodChannel(
     'loopweek/notification_cache',
   );
+
+  static const String _channelId = 'reminders';
+  static const String _channelName = 'Reminders';
+  static const String _channelDescription =
+      'Optional reminders for Loopweek tasks.';
+
+  /// Foreground taps and action presses land here after payload parsing.
+  /// Assigned once in `main.dart` so this service never touches widgets,
+  /// snackbars, or the Riverpod graph itself.
+  static Future<void> Function(ReminderAction action, ReminderPayload payload)?
+      onForegroundAction;
+
+  /// Top-level background callback for notification action presses,
+  /// registered from `main.dart` (it must be `@pragma('vm:entry-point')`
+  /// there). Null in background isolates, which never spawn further ones.
+  static Future<void> Function(NotificationResponse)?
+      backgroundResponseHandler;
 
   bool _initialized = false;
 
@@ -57,9 +129,35 @@ class NotificationService {
       android: android,
       iOS: ios,
     );
-    await _plugin.initialize(settings);
+    await _plugin.initialize(
+      settings,
+      onDidReceiveNotificationResponse: _onNotificationResponse,
+      onDidReceiveBackgroundNotificationResponse: backgroundResponseHandler,
+    );
     _initialized = true;
     await _recoverCorruptCache();
+  }
+
+  /// Foreground response dispatch: parse the payload, map the pressed action
+  /// (null action id = body tap) and forward to the UI-layer callback.
+  Future<void> _onNotificationResponse(NotificationResponse response) async {
+    final payload = ReminderPayload.tryDecode(response.payload);
+    if (payload == null) return;
+    final handler = onForegroundAction;
+    if (handler == null) return;
+    await handler(ReminderAction.fromActionId(response.actionId), payload);
+  }
+
+  /// Launch details for a cold start triggered by a notification tap, so the
+  /// next-open bootstrap can honor a body tap that launched the app. Must be
+  /// called after [ensureInitialized]. Never throws.
+  Future<NotificationAppLaunchDetails?> launchDetails() async {
+    try {
+      return await _plugin.getNotificationAppLaunchDetails();
+    } catch (e) {
+      debugPrint('Could not read notification launch details: $e');
+      return null;
+    }
   }
 
   /// Points the `timezone` package's local location at the device's current
@@ -187,7 +285,9 @@ class NotificationService {
   }
 
   /// Schedules a reminder at [scheduled], replacing any previously scheduled
-  /// reminder for the same task.
+  /// reminder for the same task. [accent] tints the Android notification with
+  /// the user's chosen color; [taskDate] is the task's own date (not the fire
+  /// time), carried in the payload so actions can reason about it.
   ///
   /// Never throws into the caller's save flow: a fire time in the past simply
   /// results in no reminder (the old one was already cancelled), and any
@@ -198,6 +298,8 @@ class NotificationService {
     required String taskId,
     required String title,
     required DateTime scheduled,
+    required DateTime taskDate,
+    required Color accent,
   }) async {
     await ensureInitialized();
     final int id = notificationIdFor(taskId);
@@ -214,21 +316,35 @@ class NotificationService {
     // time has already passed should simply not fire.
     if (!scheduled.isAfter(DateTime.now())) return;
 
-    const NotificationDetails details = NotificationDetails(
+    final NotificationDetails details = NotificationDetails(
       android: AndroidNotificationDetails(
-        'loopweek_reminders',
-        'Task reminders',
-        channelDescription: 'Optional reminders for Loopweek tasks.',
+        _channelId,
+        _channelName,
+        channelDescription: _channelDescription,
         importance: Importance.high,
         priority: Priority.high,
         showWhen: true,
+        color: accent,
+        actions: [
+          AndroidNotificationAction(
+            ReminderAction.markDone.actionId!,
+            'Mark done',
+          ),
+          AndroidNotificationAction(
+            ReminderAction.remindTomorrow.actionId!,
+            'Remind tomorrow',
+          ),
+        ],
       ),
-      iOS: DarwinNotificationDetails(),
+      iOS: const DarwinNotificationDetails(),
     );
+
+    final body = 'Scheduled for ${DateFormat('EEE, MMM d').format(scheduled)}';
+    final payload = ReminderPayload(taskId: taskId, taskDate: taskDate);
 
     var mode = await _scheduleMode();
     try {
-      await _zonedSchedule(id, title, taskId, scheduled, details, mode);
+      await _zonedSchedule(id, title, body, payload, scheduled, details, mode);
     } catch (e) {
       // Exact alarms can be revoked between the check and the schedule call;
       // retry once with an inexact alarm before giving up.
@@ -237,7 +353,8 @@ class NotificationService {
           await _zonedSchedule(
             id,
             title,
-            taskId,
+            body,
+            payload,
             scheduled,
             details,
             AndroidScheduleMode.inexactAllowWhileIdle,
@@ -289,7 +406,7 @@ class NotificationService {
   ///
   /// Run once on every app start so reminders self-heal after force-stops,
   /// cache wipes, plugin upgrades, or any other lost-alarm scenario.
-  Future<void> syncReminders(List<Task> upcoming) async {
+  Future<void> syncReminders(List<Task> upcoming, {required Color accent}) async {
     await ensureInitialized();
 
     final now = DateTime.now();
@@ -330,6 +447,8 @@ class NotificationService {
         taskId: task.id,
         title: task.title,
         scheduled: fireDateTimeFor(task),
+        taskDate: task.date,
+        accent: accent,
       );
     }
   }
@@ -355,7 +474,8 @@ class NotificationService {
   Future<void> _zonedSchedule(
     int id,
     String title,
-    String taskId,
+    String body,
+    ReminderPayload payload,
     DateTime scheduled,
     NotificationDetails details,
     AndroidScheduleMode mode,
@@ -363,10 +483,10 @@ class NotificationService {
     return _plugin.zonedSchedule(
       id,
       title,
-      'Tap to open Loopweek.',
+      body,
       _toTz(scheduled),
       details,
-      payload: taskId,
+      payload: payload.encode(),
       androidScheduleMode: mode,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,

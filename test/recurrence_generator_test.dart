@@ -173,6 +173,72 @@ void main() {
         expect(result, [_d(2026, 8, 2)]);
       },
     );
+
+    test('biweekly produces anchor +14/+28 day occurrences', () {
+      // Anchor Mon Aug 3 2026; window covers 5 weeks.
+      final result = RecurrenceGenerator.occurrencesForWindow(
+        rule: _rule(date: _d(2026, 8, 3), recurrence: Recurrence.biweekly),
+        startInclusive: _d(2026, 8, 1),
+        endInclusive: _d(2026, 9, 5),
+      );
+      expect(result, [
+        _d(2026, 8, 3),
+        _d(2026, 8, 17),
+        _d(2026, 8, 31),
+      ]);
+    });
+
+    test('monthly clamps anchor day to target month length', () {
+      // Anchor Jan 31 2026 (non-leap year); window Jan-Jun.
+      final result = RecurrenceGenerator.occurrencesForWindow(
+        rule: _rule(date: _d(2026, 1, 31), recurrence: Recurrence.monthly),
+        startInclusive: _d(2026, 1, 1),
+        endInclusive: _d(2026, 6, 30),
+      );
+      expect(result, [
+        _d(2026, 1, 31),
+        _d(2026, 2, 28),
+        _d(2026, 3, 31),
+        _d(2026, 4, 30),
+        _d(2026, 5, 31),
+        _d(2026, 6, 30),
+      ]);
+    });
+
+    test('yearly clamps Feb 29 to Feb 28 in common years', () {
+      final result = RecurrenceGenerator.occurrencesForWindow(
+        rule: _rule(date: _d(2024, 2, 29), recurrence: Recurrence.yearly),
+        startInclusive: _d(2024, 1, 1),
+        endInclusive: _d(2027, 12, 31),
+      );
+      expect(result, [
+        _d(2024, 2, 29),
+        _d(2025, 2, 28),
+        _d(2026, 2, 28),
+        _d(2027, 2, 28),
+      ]);
+    });
+
+    test('monthly skips months before the anchor', () {
+      // Anchor Mar 15; window starts in January, so Jan/Feb are not emitted.
+      final result = RecurrenceGenerator.occurrencesForWindow(
+        rule: _rule(date: _d(2026, 3, 15), recurrence: Recurrence.monthly),
+        startInclusive: _d(2026, 1, 1),
+        endInclusive: _d(2026, 12, 31),
+      );
+      expect(result, [
+        _d(2026, 3, 15),
+        _d(2026, 4, 15),
+        _d(2026, 5, 15),
+        _d(2026, 6, 15),
+        _d(2026, 7, 15),
+        _d(2026, 8, 15),
+        _d(2026, 9, 15),
+        _d(2026, 10, 15),
+        _d(2026, 11, 15),
+        _d(2026, 12, 15),
+      ]);
+    });
   });
 
   group('RecurrenceGenerator.isValidOccurrenceOf', () {

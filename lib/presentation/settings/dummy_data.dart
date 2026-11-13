@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart' show TimeOfDay;
 
 import 'package:loopweek/domain/models/color_tag.dart';
+import 'package:loopweek/domain/models/first_day_of_week.dart';
 import 'package:loopweek/domain/models/recurrence.dart';
 import 'package:loopweek/domain/models/task.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
@@ -9,8 +10,8 @@ import 'package:loopweek/presentation/week/week_providers.dart';
 ///
 /// Used by the hidden testing-mode easter egg so the week view can be
 /// populated with realistic data without manual entry.
-List<Task> buildDummyTasksForWeek(DateTime anchor) {
-  final dates = weekDatesFor(anchor);
+List<Task> buildDummyTasksForWeek(DateTime anchor, FirstDayOfWeek firstDay) {
+  final dates = weekDatesFor(anchor, firstDay);
   final tasks = <Task>[];
   var sequence = 0;
 

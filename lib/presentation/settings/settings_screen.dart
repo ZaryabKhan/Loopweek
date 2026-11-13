@@ -7,14 +7,20 @@ import 'package:loopweek/core/dev_links.dart';
 import 'package:loopweek/core/donation_mode.dart';
 import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
+import 'package:loopweek/data/services/backup_service.dart';
+import 'package:loopweek/data/services/week_print_service.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
+import 'package:loopweek/domain/models/first_day_of_week.dart';
+import 'package:loopweek/domain/models/task.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/settings/donation_sheet.dart';
 import 'package:loopweek/presentation/settings/dummy_data.dart';
+import 'package:loopweek/presentation/settings/template_sheets.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
 import 'package:loopweek/presentation/widgets/accent_segmented.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const _swatchLabel = {
@@ -105,7 +111,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final repo = ref.read(taskRepositoryProvider);
     final today = ref.read(todayProvider);
     await repo.clearAllTasks();
-    final tasks = buildDummyTasksForWeek(today);
+    final tasks = buildDummyTasksForWeek(
+      today,
+      ref.read(settingsProvider).firstDayOfWeek,
+    );
     await repo.insertTaskBatch(tasks);
     final settings = ref.read(settingsProvider);
     await ref
@@ -114,6 +123,37 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           accent: settings.colorTag,
           themeMode: settings.themeMode,
         );
+  }
+
+  Future<void> _runBackup(
+    Future<String> Function(BackupService backup) action,
+  ) async {
+    Haptics.light();
+    final message = await action(await ref.read(backupServiceProvider.future));
+    ref.invalidate(settingsProvider);
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
+  /// Opens the Android print sheet with an A4 snapshot of the shown week.
+  /// Dates and per-date tasks are read at tap time, so the sheet always
+  /// matches what's on screen, offset included.
+  Future<void> _printShownWeek() async {
+    Haptics.light();
+    final weekDates = ref.read(weekDatesProvider);
+    final repo = ref.read(taskRepositoryProvider);
+    final accent = AccentColors.of(ref.read(settingsProvider).colorTag);
+    await Printing.layoutPdf(
+      onLayout: (format) => buildWeekPdf(
+        format,
+        weekDates: weekDates,
+        // .first takes the watch stream's current snapshot.
+        tasksForDate: (date) => repo.watchTasksForDate(date).first,
+        accent: accent,
+      ),
+    );
   }
 
   @override
@@ -149,6 +189,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _LabelRow('Appearance'),
             const SizedBox(height: 8),
             const _ThemeSelector(),
+            const SizedBox(height: 16),
+            _LabelRow('First day of week'),
+            const SizedBox(height: 8),
+            _FirstDaySelector(),
             const SizedBox(height: 24),
             _LabelRow('Times & Alerts'),
             const SizedBox(height: 8),
@@ -193,6 +237,34 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               url: DevLinks.playStore,
             ),
             _FeedbackTile(),
+            const SizedBox(height: 24),
+            _LabelRow('Backup'),
+            const SizedBox(height: 8),
+            _SettingsRow(
+              icon: Icons.file_download_outlined,
+              title: 'Export backup',
+              subtitle: 'Save tasks and settings to a JSON file',
+              onTap: () => _runBackup((backup) => backup.exportBackup()),
+            ),
+            _SettingsRow(
+              icon: Icons.file_upload_outlined,
+              title: 'Import backup',
+              subtitle: 'Restore from a Loopweek backup file',
+              onTap: () => _runBackup((backup) => backup.importBackup()),
+            ),
+            const SizedBox(height: 24),
+            _LabelRow('Print'),
+            const SizedBox(height: 8),
+            _SettingsRow(
+              icon: Icons.print_outlined,
+              title: 'Print this week',
+              subtitle: 'A4 sheet via Android print',
+              onTap: _printShownWeek,
+            ),
+            const SizedBox(height: 24),
+            _LabelRow('Templates'),
+            const SizedBox(height: 8),
+            const _TemplatesSection(),
             if (donationMode == DonationMode.iap) ...[
               _IapDonationTile(),
             ] else
@@ -434,6 +506,32 @@ class _ThemeSelector extends ConsumerWidget {
         await ref
             .read(homeWidgetServiceProvider)
             .pushTodaySnapshot(accent: active.colorTag, themeMode: mode);
+      },
+    );
+  }
+}
+
+class _FirstDaySelector extends ConsumerWidget {
+  const _FirstDaySelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active = ref.watch(settingsProvider);
+    return AccentSegmented<FirstDayOfWeek>(
+      value: active.firstDayOfWeek,
+      options: const [
+        FirstDayOfWeek.system,
+        FirstDayOfWeek.sunday,
+        FirstDayOfWeek.monday,
+      ],
+      labelOf: (day) => switch (day) {
+        FirstDayOfWeek.system => 'System',
+        FirstDayOfWeek.sunday => 'Sunday',
+        FirstDayOfWeek.monday => 'Monday',
+      },
+      onChanged: (day) async {
+        Haptics.selection();
+        await active.setFirstDayOfWeek(day);
       },
     );
   }
@@ -683,6 +781,138 @@ class _FeedbackTile extends StatelessWidget {
         Haptics.light();
         _open(context);
       },
+    );
+  }
+}
+
+/// A settings entry row (backup export / import, print). Same visual
+/// signature as [_IapDonationTile]; the backup haptic and result snackbar
+/// live in [_SettingsScreenState._runBackup], which the [onTap] closure
+/// wires up.
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: Icon(icon, color: theme.colorScheme.primary),
+      title: Text(
+        title,
+        style: theme.textTheme.titleMedium?.copyWith(color: onSurface),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: onSurface.withValues(alpha: 0.6),
+        ),
+      ),
+      onTap: onTap,
+    );
+  }
+}
+
+/// The Templates section rows: snapshot the shown week into a named template
+/// and seed a saved week back onto the shown one. The save row reads the
+/// shown week's tasks live, so its subtitle doubles as the save affordance's
+/// state ("This week is empty" disables it).
+class _TemplatesSection extends ConsumerWidget {
+  const _TemplatesSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final weekDates = ref.watch(weekDatesProvider);
+    final perDay = [
+      for (final date in weekDates)
+        ref.watch(tasksForDateProvider(date)).valueOrNull ?? const <Task>[],
+    ];
+    final totalTasks = perDay.fold<int>(0, (sum, tasks) => sum + tasks.length);
+    final daysWithTasks = perDay.where((tasks) => tasks.isNotEmpty).length;
+
+    return Column(
+      children: [
+        _TemplateRow(
+          icon: Icons.save_outlined,
+          title: 'Save this week as template',
+          subtitle: totalTasks == 0
+              ? 'This week is empty'
+              : '$totalTasks tasks across $daysWithTasks days',
+          enabled: totalTasks > 0,
+          onTap: () {
+            Haptics.light();
+            showSaveTemplateSheet(context, weekDates: weekDates);
+          },
+        ),
+        _TemplateRow(
+          icon: Icons.edit_calendar_outlined,
+          title: 'Apply a template',
+          subtitle: 'Seed a saved week onto this one',
+          enabled: true,
+          onTap: () {
+            Haptics.light();
+            showApplyTemplateSheet(context);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// A Templates entry row. Same ListTile signature as [_SettingsRow], plus an
+/// [enabled] flag so the save row can gray out on an empty week.
+class _TemplateRow extends StatelessWidget {
+  const _TemplateRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      enabled: enabled,
+      leading: Icon(
+        icon,
+        color: enabled ? theme.colorScheme.primary : theme.disabledColor,
+      ),
+      title: Text(
+        title,
+        style: theme.textTheme.titleMedium?.copyWith(
+          color: enabled ? onSurface : theme.disabledColor,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: enabled
+              ? onSurface.withValues(alpha: 0.6)
+              : theme.disabledColor,
+        ),
+      ),
+      onTap: enabled ? onTap : null,
     );
   }
 }

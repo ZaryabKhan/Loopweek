@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:loopweek/domain/models/color_tag.dart';
+import 'package:loopweek/domain/models/first_day_of_week.dart';
 
 /// Persistent user settings: chosen accent color, theme mode, and the
 /// "Times & Alerts" toggle.
@@ -14,10 +15,13 @@ class SettingsService {
 
   static const _kColorTag = 'settings.colorTag';
   static const _kThemeMode = 'settings.themeMode';
+  static const _kFirstDayOfWeek = 'settings.firstDayOfWeek';
   static const _kOnboardingSeen = 'onboarding.seen';
   static const _kLongPressHintSeen = 'onboarding.longPressHintSeen';
   static const _kAlertsEnabled = 'settings.alertsEnabled';
   static const _kHapticsEnabled = 'settings.hapticsEnabled';
+  static const _kRitualLastSeenWeekStart = 'ritual.lastSeenWeekStart';
+  static const _kNotifLastDone = 'notif.lastDone';
 
   ColorTag get colorTag => ColorTag.fromName(_prefs.getString(_kColorTag));
   Future<void> setColorTag(ColorTag tag) =>
@@ -43,6 +47,12 @@ class SettingsService {
         : 'system';
     return _prefs.setString(_kThemeMode, value);
   }
+
+  /// Which day the week view starts on. 'system' follows the device locale.
+  FirstDayOfWeek get firstDayOfWeek =>
+      FirstDayOfWeek.fromName(_prefs.getString(_kFirstDayOfWeek));
+  Future<void> setFirstDayOfWeek(FirstDayOfWeek value) =>
+      _prefs.setString(_kFirstDayOfWeek, value.name);
 
   /// Whether the user has enabled the "Times & Alerts" master switch. This is
   /// the global gate for Loopweek task reminders.
@@ -70,4 +80,25 @@ class SettingsService {
   bool get longPressHintSeen => _prefs.getBool(_kLongPressHintSeen) ?? false;
   Future<void> setLongPressHintSeen() =>
       _prefs.setBool(_kLongPressHintSeen, true);
+
+  /// Week start (date-only ISO string, yyyy-MM-dd) the fresh-week ritual
+  /// banner was last rendered for — written at render, once per week.
+  String? get ritualLastSeenWeekStart =>
+      _prefs.getString(_kRitualLastSeenWeekStart);
+  Future<void> setRitualLastSeenWeekStart(String weekStartIso) =>
+      _prefs.setString(_kRitualLastSeenWeekStart, weekStartIso);
+
+  /// Per-week dismissal flag for the ritual banner, keyed by the week's
+  /// start date so a new week re-arms automatically.
+  bool isRitualBannerDismissed(String weekStartIso) =>
+      _prefs.getBool('ritual.bannerDismissed:$weekStartIso') ?? false;
+  Future<void> setRitualBannerDismissed(String weekStartIso) =>
+      _prefs.setBool('ritual.bannerDismissed:$weekStartIso', true);
+
+  /// JSON `{"taskId","title","ts"}` written by the background "Mark done"
+  /// reminder action so the next app open can offer an undo window.
+  String? get notifLastDone => _prefs.getString(_kNotifLastDone);
+  Future<void> setNotifLastDone(String json) =>
+      _prefs.setString(_kNotifLastDone, json);
+  Future<void> clearNotifLastDone() => _prefs.remove(_kNotifLastDone);
 }

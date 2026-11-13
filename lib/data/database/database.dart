@@ -6,17 +6,18 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:loopweek/data/database/tasks_table.dart';
+import 'package:loopweek/data/database/week_template_tables.dart';
 
 part 'database.g.dart';
 
-@DriftDatabase(tables: [Tasks])
+@DriftDatabase(tables: [Tasks, WeekTemplates, WeekTemplateItems])
 class LoopweekDatabase extends _$LoopweekDatabase {
   LoopweekDatabase() : super(_open());
 
   LoopweekDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +41,24 @@ class LoopweekDatabase extends _$LoopweekDatabase {
         // Added reminder_offset_days to persist the reminder lead time.
         await customStatement(
           'ALTER TABLE tasks ADD COLUMN reminder_offset_days INTEGER NOT NULL DEFAULT 0;',
+        );
+      }
+      if (from < 4) {
+        // Added is_someday for the Someday parking lot.
+        await customStatement(
+          'ALTER TABLE tasks ADD COLUMN is_someday INTEGER NOT NULL DEFAULT 0;',
+        );
+      }
+      if (from < 5) {
+        // Added week templates: week_templates holds the saved snapshot,
+        // week_template_items its captured per-weekday tasks. The CREATE
+        // statements mirror drift_dev's generated layout exactly so a
+        // migrated database matches a fresh install.
+        await customStatement(
+          'CREATE TABLE IF NOT EXISTS "week_templates" ("id" TEXT NOT NULL, "name" TEXT NOT NULL, "created_at" INTEGER NOT NULL, PRIMARY KEY ("id"));',
+        );
+        await customStatement(
+          'CREATE TABLE IF NOT EXISTS "week_template_items" ("id" TEXT NOT NULL, "template_id" TEXT NOT NULL, "weekday" INTEGER NOT NULL, "title" TEXT NOT NULL, "has_time" INTEGER NOT NULL CHECK ("has_time" IN (0, 1)), "time_minutes" INTEGER NULL, "sort_order" INTEGER NOT NULL, PRIMARY KEY ("id"));',
         );
       }
     },

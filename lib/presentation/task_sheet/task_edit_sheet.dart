@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:loopweek/core/haptics/haptics_service.dart';
+import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/domain/models/recurrence.dart';
 import 'package:loopweek/domain/models/task.dart';
@@ -14,8 +15,10 @@ import 'package:loopweek/presentation/widgets/accent_segmented.dart';
 /// Modal sheet for adding or editing a task. Slides up from the bottom.
 ///
 /// Header: Cancel (left) — "New Task"/"Edit Task" (center, bold) — Add/Save
-/// (right, accent). Sections sit in rounded cards. Day / Repeat (segmented) /
-/// Time (toggle + picker) / Reminder (toggle + Day/At preview).
+/// (right, accent). When editing an existing task, a destructive "Remove
+/// task" button sits at the far left of that row. Sections sit in rounded
+/// cards. Day / Repeat (segmented) / Time (toggle + picker) / Reminder
+/// (toggle + Day/At preview).
 class TaskEditSheet extends ConsumerStatefulWidget {
   const TaskEditSheet({super.key, this.task, required this.date});
 
@@ -37,6 +40,7 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
   late TimeOfDay _time = widget.task?.time ?? TimeOfDay.now();
   late bool _hasReminder = widget.task?.hasReminder ?? false;
   late int _reminderOffsetDays = widget.task?.reminderOffsetDays ?? 0;
+  late bool _isSomeday = widget.task?.isSomeday ?? false;
 
   final _focusNode = FocusNode();
   bool _saving = false;
@@ -89,8 +93,20 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    if (widget.task != null)
+                      TextButton(
+                        onPressed: _saving
+                            ? null
+                            : () {
+                                Haptics.medium();
+                                _onRemove();
+                              },
+                        child: Text(
+                          'Remove task',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ),
                     TextButton(
                       onPressed: () {
                         Haptics.light();
@@ -105,9 +121,12 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                         ),
                       ),
                     ),
-                    Text(
-                      widget.task == null ? 'New Task' : 'Edit Task',
-                      style: theme.textTheme.titleLarge,
+                    Expanded(
+                      child: Text(
+                        widget.task == null ? 'New Task' : 'Edit Task',
+                        style: theme.textTheme.titleLarge,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                     TextButton(
                       onPressed: _saving
@@ -184,28 +203,38 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                       color: theme.colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
-                  rightChild: InkWell(
-                    onTap: _pickDate,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 2),
-                      child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text(
-                            DateFormat('EEE, MMM d').format(_date),
-                            style: theme.textTheme.bodyMedium,
+                  rightChild: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      InkWell(
+                        onTap: _pickDate,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 2),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(
+                                DateFormat('EEE, MMM d').format(_date),
+                                style: theme.textTheme.bodyMedium,
+                              ),
+                              const SizedBox(width: 6),
+                              Icon(
+                                Icons.chevron_right,
+                                size: 18,
+                                color: theme.colorScheme.onSurface.withValues(
+                                  alpha: 0.5,
+                                ),
+                              ),
+                            ],
                           ),
-                          const SizedBox(width: 6),
-                          Icon(
-                            Icons.chevron_right,
-                            size: 18,
-                            color: theme.colorScheme.onSurface.withValues(
-                              alpha: 0.5,
-                            ),
-                          ),
-                        ],
+                        ),
                       ),
-                    ),
+                      const SizedBox(width: 10),
+                      _SomedayChip(
+                        active: _isSomeday,
+                        onToggle: _toggleSomeday,
+                      ),
+                    ],
                   ),
                 ),
               ),
@@ -236,11 +265,17 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                           Recurrence.never,
                           Recurrence.daily,
                           Recurrence.weekly,
+                          Recurrence.biweekly,
+                          Recurrence.monthly,
+                          Recurrence.yearly,
                         ],
                         labelOf: (r) => switch (r) {
                           Recurrence.never => 'Never',
                           Recurrence.daily => 'Daily',
                           Recurrence.weekly => 'Weekly',
+                          Recurrence.biweekly => '2 wk',
+                          Recurrence.monthly => 'Month',
+                          Recurrence.yearly => 'Year',
                         },
                         onChanged: (v) {
                           Haptics.selection();
@@ -248,11 +283,11 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                         },
                       ),
                     ),
-                    if (_recurrence == Recurrence.weekly)
+                    if (_recurrence != Recurrence.never)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                         child: Text(
-                          _weeklyCaption(),
+                          _recurrenceCaption(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurface.withValues(
                               alpha: 0.55,
@@ -374,9 +409,26 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
 
   // ---- helpers ------------------------------------------------------------
 
-  String _weeklyCaption() {
+  String _recurrenceCaption() {
     final name = WeekView.weekdayNames[_date.weekday % 7];
-    return 'Every $name';
+    return switch (_recurrence) {
+      Recurrence.never => '',
+      Recurrence.daily => 'Every day',
+      Recurrence.weekly => 'Every $name',
+      Recurrence.biweekly => 'Every 2 weeks on $name',
+      Recurrence.monthly => 'Monthly on the ${_ordinal(_date.day)}',
+      Recurrence.yearly => 'Yearly on ${DateFormat('MMM d').format(_date)}',
+    };
+  }
+
+  String _ordinal(int day) {
+    if (day >= 11 && day <= 13) return '${day}th';
+    return switch (day % 10) {
+      1 => '${day}st',
+      2 => '${day}nd',
+      3 => '${day}rd',
+      _ => '${day}th',
+    };
   }
 
   String _reminderPreview() {
@@ -453,6 +505,22 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
     setState(() => _hasReminder = true);
   }
 
+  /// Recurring rules must stay on a day — their whole point is generating
+  /// day-anchored occurrences. Parking them would strand the schedule.
+  void _toggleSomeday() {
+    final task = widget.task;
+    if (task != null &&
+        task.recurrenceParentId == null &&
+        task.recurrence.isRecurring) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recurring tasks need a day.')),
+      );
+      return;
+    }
+    Haptics.selection();
+    setState(() => _isSomeday = !_isSomeday);
+  }
+
   Future<void> _pickDate() async {
     final today = ref.read(todayProvider);
     final picked = await showDatePicker(
@@ -512,6 +580,7 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
             reminderOffsetDays: _reminderOffsetDays,
             recurrence: _recurrence,
             sortOrder: 0,
+            isSomeday: _isSomeday,
           )
         : widget.task!.copyWith(
             title: title,
@@ -523,6 +592,7 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
             reminderOffsetDays: _reminderOffsetDays,
             recurrence: _recurrence,
             colorTag: accentTag,
+            isSomeday: _isSomeday,
           );
 
     try {
@@ -555,14 +625,17 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
         occurrences = await repo.getOccurrencesOf(saved.id);
       }
 
-      // Schedule reminders. If the reminder was turned off for an existing
+      // Schedule reminders. A parked (Someday) task never fires one: cancel
+      // its reminder outright. If the reminder was turned off for an existing
       // task, or if notifications are disabled/permission denied, cancel the
       // rule's reminder and every occurrence reminder.
       final settings = ref.read(settingsProvider);
       final canRemind = saved.hasReminder &&
           settings.alertsEnabled &&
           await notif.requestPermission();
-      if (!canRemind) {
+      if (saved.isSomeday) {
+        await notif.cancelTaskReminder(saved.id);
+      } else if (!canRemind) {
         await notif.cancelTaskReminder(saved.id);
         for (final occurrence in occurrences) {
           await notif.cancelTaskReminder(occurrence.id);
@@ -584,17 +657,22 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
             taskId: saved.id,
             title: saved.title,
             scheduled: fire,
+            taskDate: saved.date,
+            accent: AccentColors.of(accentTag),
           );
         }
         // Each recurring occurrence is an independent row with its own id, so
         // each one needs its own scheduled reminder. The service skips past
-        // fire times.
+        // fire times. Parked occurrences never fire, even if the rule's
+        // metadata still carries a reminder.
         for (final occurrence in occurrences) {
-          if (!occurrence.hasReminder) continue;
+          if (!occurrence.hasReminder || occurrence.isSomeday) continue;
           await notif.scheduleTaskReminder(
             taskId: occurrence.id,
             title: occurrence.title,
             scheduled: _occurrenceFire(occurrence),
+            taskDate: occurrence.date,
+            accent: AccentColors.of(accentTag),
           );
         }
       }
@@ -606,7 +684,7 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
         themeMode: themeMode,
       );
 
-      if (mounted) Navigator.of(context).pop(saved);
+      if (mounted) Navigator.of(context).pop(TaskEditSaved(saved));
     } catch (e, st) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -618,9 +696,99 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  /// Deletes the edited task and closes the sheet with a [TaskEditDeleted]
+  /// result so the caller can offer Undo. [widget.task] is the untouched
+  /// pre-delete row (the sheet edits copies of its fields), so Undo can
+  /// restore it exactly — id, date, completion, reminder and recurrence
+  /// parent all ride along.
+  Future<void> _onRemove() async {
+    final task = widget.task;
+    if (task == null || _saving) return;
+    _saving = true;
+
+    final repo = ref.read(taskRepositoryProvider);
+    final notif = ref.read(notificationServiceProvider);
+
+    try {
+      await repo.deleteTask(task.id);
+      // Drop the pending reminder for the removed task; Undo re-arms it.
+      await notif.cancelTaskReminder(task.id);
+      if (mounted) Navigator.of(context).pop(TaskEditDeleted(task));
+    } catch (e) {
+      _saving = false;
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not remove task: $e')));
+      }
+    }
+  }
+}
+
+/// What the edit sheet reports back to its caller via `Navigator.pop`. A null
+/// result means the sheet was dismissed without a commit.
+sealed class TaskEditResult {
+  const TaskEditResult(this.task);
+
+  final Task task;
+}
+
+class TaskEditSaved extends TaskEditResult {
+  const TaskEditSaved(super.task);
+}
+
+class TaskEditDeleted extends TaskEditResult {
+  const TaskEditDeleted(super.task);
 }
 
 // ---- reusable bits --------------------------------------------------------
+
+/// Small outlined toggle chip beside the day selector. Active state is
+/// accent-filled-tinted, matching the segmented control's flat visual family.
+class _SomedayChip extends StatelessWidget {
+  const _SomedayChip({required this.active, required this.onToggle});
+
+  final bool active;
+  final VoidCallback onToggle;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final accent = theme.colorScheme.primary;
+    return Semantics(
+      toggled: active,
+      button: true,
+      child: OutlinedButton(
+        onPressed: onToggle,
+        style: OutlinedButton.styleFrom(
+          side: BorderSide(
+            color: active
+                ? accent
+                : theme.colorScheme.onSurface.withValues(alpha: 0.3),
+            width: active ? 1.5 : 1,
+          ),
+          backgroundColor: active ? accent.withValues(alpha: 0.12) : null,
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          minimumSize: Size.zero,
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(10),
+          ),
+        ),
+        child: Text(
+          'Someday',
+          style: theme.textTheme.labelLarge?.copyWith(
+            color: active
+                ? accent
+                : theme.colorScheme.onSurface.withValues(alpha: 0.7),
+            fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _SectionCard extends StatelessWidget {
   const _SectionCard({required this.child});

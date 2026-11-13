@@ -2,13 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/core/theme/app_theme.dart';
 import 'package:loopweek/data/database/database.dart';
 import 'package:loopweek/data/repositories/task_repository.dart';
+import 'package:loopweek/data/repositories/week_template_repository.dart';
+import 'package:loopweek/data/services/backup_service.dart';
 import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/data/services/settings_service.dart';
 import 'package:loopweek/data/services/home_widget_service.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
+import 'package:loopweek/domain/models/first_day_of_week.dart';
 
 // ---- infra ----------------------------------------------------------------
 
@@ -22,6 +26,18 @@ final databaseProvider = Provider<LoopweekDatabase>(
 
 final taskRepositoryProvider = Provider<TaskRepository>(
   (ref) => TaskRepository(ref.watch(databaseProvider)),
+);
+
+final weekTemplateRepositoryProvider = Provider<WeekTemplateRepository>(
+  (ref) => WeekTemplateRepository(
+    ref.watch(databaseProvider),
+    ref.watch(taskRepositoryProvider),
+  ),
+);
+
+/// Live list of saved week templates, newest first. Feeds the picker sheet.
+final weekTemplatesProvider = StreamProvider<List<TemplateSummary>>(
+  (ref) => ref.watch(weekTemplateRepositoryProvider).watchTemplates(),
 );
 
 final notificationServiceProvider = Provider<NotificationService>(
@@ -52,7 +68,10 @@ final reminderSyncProvider = FutureProvider<void>((ref) async {
     }
     final repo = ref.watch(taskRepositoryProvider);
     final upcoming = await repo.tasksWithRemindersFrom(DateTime.now());
-    await notifications.syncReminders(upcoming);
+    await notifications.syncReminders(
+      upcoming,
+      accent: AccentColors.of(settings.colorTag),
+    );
   } catch (e) {
     debugPrint('Reminder startup sync failed: $e');
   }
@@ -61,6 +80,14 @@ final reminderSyncProvider = FutureProvider<void>((ref) async {
 final homeWidgetServiceProvider = Provider<HomeWidgetService>(
   (ref) => HomeWidgetService(ref.watch(taskRepositoryProvider)),
 );
+
+/// SharedPreferences arrive via [sharedPreferencesProvider], so — like the
+/// settings load itself — the backup service resolves once prefs are ready.
+/// Reading `.future` later (e.g. on a settings-screen tap) is instantaneous.
+final backupServiceProvider = FutureProvider<BackupService>((ref) async {
+  final sp = await ref.watch(sharedPreferencesProvider.future);
+  return BackupService(ref.watch(taskRepositoryProvider), SettingsService(sp));
+});
 
 // ---- settings -------------------------------------------------------------
 
@@ -79,6 +106,7 @@ class ActiveSettings extends ChangeNotifier {
 
   ColorTag colorTag = ColorTag.defaultValue;
   ThemeMode themeMode = ThemeMode.system;
+  FirstDayOfWeek firstDayOfWeek = FirstDayOfWeek.system;
   bool onboardingSeen = false;
   bool longPressHintSeen = false;
   bool alertsEnabled = true;
@@ -101,6 +129,7 @@ class ActiveSettings extends ChangeNotifier {
     final service = SettingsService(sp);
     colorTag = service.colorTag;
     themeMode = service.themeMode;
+    firstDayOfWeek = service.firstDayOfWeek;
     onboardingSeen = service.onboardingSeen;
     longPressHintSeen = service.longPressHintSeen;
     alertsEnabled = service.alertsEnabled;
@@ -122,6 +151,14 @@ class ActiveSettings extends ChangeNotifier {
     if (sp == null) return;
     await SettingsService(sp).setThemeMode(mode);
     themeMode = mode;
+    _notify();
+  }
+
+  Future<void> setFirstDayOfWeek(FirstDayOfWeek value) async {
+    final sp = _ref.read(sharedPreferencesProvider).valueOrNull;
+    if (sp == null) return;
+    await SettingsService(sp).setFirstDayOfWeek(value);
+    firstDayOfWeek = value;
     _notify();
   }
 
