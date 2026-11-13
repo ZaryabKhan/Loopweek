@@ -1,17 +1,10 @@
 name: Play Release
 
-# Builds the playstore-flavor AAB and uploads it to the Google Play
-# INTERNAL track. Manual trigger only — nothing is promoted to
-# production from this lane.
-#
-# One-time setup required:
-#   Add this repository secret (Settings -> Secrets and variables -> Actions):
-#     PLAY_SERVICE_ACCOUNT_JSON – full JSON key of the Play Developer API
-#     service account, already granted release access to the app.
-#
-# The AAB is signed with the debug keystore (android/key.properties does not
-# exist in CI). Google Play App Signing re-signs with the real app key, so
-# the internal track accepts it.
+# Builds the playstore-flavor AAB, signs it with the Play upload key
+# (PLAY_KEYSTORE_* secrets, written to android/key.properties), and
+# uploads it to the Google Play PRODUCTION track with full rollout
+# (owner-ordered). The GitHub-release lane (RELEASE_* keystore) stays
+# untouched in release.yml.
 
 on:
   workflow_dispatch:   # manual only; attach a tag trigger when release tagging is unlocked
@@ -47,14 +40,24 @@ jobs:
       - name: Generate Drift code
         run: dart run build_runner build --delete-conflicting-outputs
 
+      - name: Write Play signing config from secrets
+        run: |
+          echo "${{ secrets.PLAY_KEYSTORE_BASE64 }}" | base64 -d > android/app/play-upload.keystore
+          cat > android/key.properties <<'EOF'
+          storeFile=play-upload.keystore
+          storePassword=${{ secrets.PLAY_STORE_PASSWORD }}
+          keyAlias=${{ secrets.PLAY_KEY_ALIAS }}
+          keyPassword=${{ secrets.PLAY_KEY_PASSWORD }}
+          EOF
+
       - name: Build signed release AAB (playstore flavor)
         run: flutter build appbundle --flavor playstore --dart-define=DONATION_MODE=iap --release
 
-      - name: Upload to Google Play (internal track)
+      - name: Upload to Google Play (production track)
         uses: r0adkll/upload-google-play@v1
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.appcodecraft.loopweek
           releaseFiles: build/app/outputs/bundle/playstoreRelease/app-playstore-release.aab
-          track: internal
+          track: production
           status: completed
