@@ -7,6 +7,7 @@ import 'package:loopweek/core/dev_links.dart';
 import 'package:loopweek/core/donation_mode.dart';
 import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
+import 'package:loopweek/data/services/backup_service.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
 import 'package:loopweek/domain/models/first_day_of_week.dart';
 import 'package:loopweek/presentation/providers.dart';
@@ -120,6 +121,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         );
   }
 
+  Future<void> _runBackup(
+    Future<String> Function(BackupService backup) action,
+  ) async {
+    Haptics.light();
+    final message = await action(await ref.read(backupServiceProvider.future));
+    ref.invalidate(settingsProvider);
+    if (!mounted) return;
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -201,6 +214,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               url: DevLinks.playStore,
             ),
             _FeedbackTile(),
+            const SizedBox(height: 24),
+            _LabelRow('Backup'),
+            const SizedBox(height: 8),
+            _BackupRow(
+              icon: Icons.file_download_outlined,
+              title: 'Export backup',
+              subtitle: 'Save tasks and settings to a JSON file',
+              onTap: () => _runBackup((backup) => backup.exportBackup()),
+            ),
+            _BackupRow(
+              icon: Icons.file_upload_outlined,
+              title: 'Import backup',
+              subtitle: 'Restore from a Loopweek backup file',
+              onTap: () => _runBackup((backup) => backup.importBackup()),
+            ),
             if (donationMode == DonationMode.iap) ...[
               _IapDonationTile(),
             ] else
@@ -717,6 +745,44 @@ class _FeedbackTile extends StatelessWidget {
         Haptics.light();
         _open(context);
       },
+    );
+  }
+}
+
+/// A backup entry row (export / import). Same visual signature as
+/// [_IapDonationTile]; the haptic and the result snackbar live in
+/// [_SettingsScreenState._runBackup], which the [onTap] closure wires up.
+class _BackupRow extends StatelessWidget {
+  const _BackupRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: Icon(icon, color: theme.colorScheme.primary),
+      title: Text(
+        title,
+        style: theme.textTheme.titleMedium?.copyWith(color: onSurface),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: onSurface.withValues(alpha: 0.6),
+        ),
+      ),
+      onTap: onTap,
     );
   }
 }

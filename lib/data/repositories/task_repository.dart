@@ -60,6 +60,12 @@ class TaskRepository {
     return rows.map(_mapper.toDomain).toList();
   }
 
+  /// Every task row in the database, unsorted. Used by backup export.
+  Future<List<Task>> getAllTasks() async {
+    final rows = await _db.select(_db.tasks).get();
+    return rows.map(_mapper.toDomain).toList();
+  }
+
   /// Every row that carries a reminder and whose date is on or after the
   /// start of [date]'s day — standalone tasks, recurring rules, and
   /// materialized occurrences alike. Feeds the startup reminder reconciler,

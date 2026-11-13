@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loopweek/core/theme/app_theme.dart';
 import 'package:loopweek/data/database/database.dart';
 import 'package:loopweek/data/repositories/task_repository.dart';
+import 'package:loopweek/data/services/backup_service.dart';
 import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/data/services/settings_service.dart';
 import 'package:loopweek/data/services/home_widget_service.dart';
@@ -62,6 +63,14 @@ final reminderSyncProvider = FutureProvider<void>((ref) async {
 final homeWidgetServiceProvider = Provider<HomeWidgetService>(
   (ref) => HomeWidgetService(ref.watch(taskRepositoryProvider)),
 );
+
+/// SharedPreferences arrive via [sharedPreferencesProvider], so — like the
+/// settings load itself — the backup service resolves once prefs are ready.
+/// Reading `.future` later (e.g. on a settings-screen tap) is instantaneous.
+final backupServiceProvider = FutureProvider<BackupService>((ref) async {
+  final sp = await ref.watch(sharedPreferencesProvider.future);
+  return BackupService(ref.watch(taskRepositoryProvider), SettingsService(sp));
+});
 
 // ---- settings -------------------------------------------------------------
 

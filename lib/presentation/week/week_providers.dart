@@ -31,7 +31,7 @@ int _firstDayAsDartWeekday(FirstDayOfWeek firstDay) {
       return DateTime.monday;
     case FirstDayOfWeek.system:
       try {
-        final symbols = DateFormat.eEEE(Platform.localeName).dateSymbols;
+        final symbols = DateFormat('EEEE', Platform.localeName).dateSymbols;
         // ICU numbering: 0 = Sunday ... 6 = Saturday.
         final int icu = symbols.FIRSTDAYOFWEEK;
         return icu == 0 ? DateTime.sunday : icu + 1;
