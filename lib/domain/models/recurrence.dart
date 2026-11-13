@@ -6,7 +6,10 @@
 enum Recurrence {
   never,
   daily,
-  weekly;
+  weekly,
+  biweekly,
+  monthly,
+  yearly;
 
   static Recurrence fromName(String? name) {
     switch (name) {
@@ -14,6 +17,12 @@ enum Recurrence {
         return Recurrence.daily;
       case 'weekly':
         return Recurrence.weekly;
+      case 'biweekly':
+        return Recurrence.biweekly;
+      case 'monthly':
+        return Recurrence.monthly;
+      case 'yearly':
+        return Recurrence.yearly;
       case 'never':
       default:
         return Recurrence.never;
@@ -24,6 +33,9 @@ enum Recurrence {
     Recurrence.never => 'never',
     Recurrence.daily => 'daily',
     Recurrence.weekly => 'weekly',
+    Recurrence.biweekly => 'biweekly',
+    Recurrence.monthly => 'monthly',
+    Recurrence.yearly => 'yearly',
   };
 
   bool get isRecurring => this != Recurrence.never;

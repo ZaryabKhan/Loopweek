@@ -236,11 +236,17 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                           Recurrence.never,
                           Recurrence.daily,
                           Recurrence.weekly,
+                          Recurrence.biweekly,
+                          Recurrence.monthly,
+                          Recurrence.yearly,
                         ],
                         labelOf: (r) => switch (r) {
                           Recurrence.never => 'Never',
                           Recurrence.daily => 'Daily',
                           Recurrence.weekly => 'Weekly',
+                          Recurrence.biweekly => '2 wk',
+                          Recurrence.monthly => 'Month',
+                          Recurrence.yearly => 'Year',
                         },
                         onChanged: (v) {
                           Haptics.selection();
@@ -248,11 +254,11 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                         },
                       ),
                     ),
-                    if (_recurrence == Recurrence.weekly)
+                    if (_recurrence != Recurrence.never)
                       Padding(
                         padding: const EdgeInsets.fromLTRB(12, 0, 12, 12),
                         child: Text(
-                          _weeklyCaption(),
+                          _recurrenceCaption(),
                           style: theme.textTheme.bodySmall?.copyWith(
                             color: theme.colorScheme.onSurface.withValues(
                               alpha: 0.55,
@@ -374,9 +380,26 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
 
   // ---- helpers ------------------------------------------------------------
 
-  String _weeklyCaption() {
+  String _recurrenceCaption() {
     final name = WeekView.weekdayNames[_date.weekday % 7];
-    return 'Every $name';
+    return switch (_recurrence) {
+      Recurrence.never => '',
+      Recurrence.daily => 'Every day',
+      Recurrence.weekly => 'Every $name',
+      Recurrence.biweekly => 'Every 2 weeks on $name',
+      Recurrence.monthly => 'Monthly on the ${_ordinal(_date.day)}',
+      Recurrence.yearly => 'Yearly on ${DateFormat('MMM d').format(_date)}',
+    };
+  }
+
+  String _ordinal(int day) {
+    if (day >= 11 && day <= 13) return '${day}th';
+    return switch (day % 10) {
+      1 => '${day}st',
+      2 => '${day}nd',
+      3 => '${day}rd',
+      _ => '${day}th',
+    };
   }
 
   String _reminderPreview() {
