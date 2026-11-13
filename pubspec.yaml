@@ -58,3 +58,8 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+dependency_overrides:
+  # printing allows image <=5.0.0, but image >=4.4 needs archive >=4.1
+  # while pdf 3.12 caps archive <4.1 — pin image 4.2.2 (archive ^3.6),
+  # the newest line both accept.
+  image: 4.3.0
