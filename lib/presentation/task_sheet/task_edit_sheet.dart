@@ -14,8 +14,10 @@ import 'package:loopweek/presentation/widgets/accent_segmented.dart';
 /// Modal sheet for adding or editing a task. Slides up from the bottom.
 ///
 /// Header: Cancel (left) — "New Task"/"Edit Task" (center, bold) — Add/Save
-/// (right, accent). Sections sit in rounded cards. Day / Repeat (segmented) /
-/// Time (toggle + picker) / Reminder (toggle + Day/At preview).
+/// (right, accent). When editing an existing task, a destructive "Remove
+/// task" button sits at the far left of that row. Sections sit in rounded
+/// cards. Day / Repeat (segmented) / Time (toggle + picker) / Reminder
+/// (toggle + Day/At preview).
 class TaskEditSheet extends ConsumerStatefulWidget {
   const TaskEditSheet({super.key, this.task, required this.date});
 
@@ -90,8 +92,20 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 8),
                 child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
+                    if (widget.task != null)
+                      TextButton(
+                        onPressed: _saving
+                            ? null
+                            : () {
+                                Haptics.medium();
+                                _onRemove();
+                              },
+                        child: Text(
+                          'Remove task',
+                          style: TextStyle(color: theme.colorScheme.error),
+                        ),
+                      ),
                     TextButton(
                       onPressed: () {
                         Haptics.light();
@@ -106,9 +120,12 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
                         ),
                       ),
                     ),
-                    Text(
-                      widget.task == null ? 'New Task' : 'Edit Task',
-                      style: theme.textTheme.titleLarge,
+                    Expanded(
+                      child: Text(
+                        widget.task == null ? 'New Task' : 'Edit Task',
+                        style: theme.textTheme.titleLarge,
+                        textAlign: TextAlign.center,
+                      ),
                     ),
                     TextButton(
                       onPressed: _saving
@@ -662,7 +679,7 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
         themeMode: themeMode,
       );
 
-      if (mounted) Navigator.of(context).pop(saved);
+      if (mounted) Navigator.of(context).pop(TaskEditSaved(saved));
     } catch (e, st) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -674,6 +691,50 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
       if (mounted) setState(() => _saving = false);
     }
   }
+
+  /// Deletes the edited task and closes the sheet with a [TaskEditDeleted]
+  /// result so the caller can offer Undo. [widget.task] is the untouched
+  /// pre-delete row (the sheet edits copies of its fields), so Undo can
+  /// restore it exactly — id, date, completion, reminder and recurrence
+  /// parent all ride along.
+  Future<void> _onRemove() async {
+    final task = widget.task;
+    if (task == null || _saving) return;
+    _saving = true;
+
+    final repo = ref.read(taskRepositoryProvider);
+    final notif = ref.read(notificationServiceProvider);
+
+    try {
+      await repo.deleteTask(task.id);
+      // Drop the pending reminder for the removed task; Undo re-arms it.
+      await notif.cancelTaskReminder(task.id);
+      if (mounted) Navigator.of(context).pop(TaskEditDeleted(task));
+    } catch (e) {
+      _saving = false;
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Could not remove task: $e')));
+      }
+    }
+  }
+}
+
+/// What the edit sheet reports back to its caller via `Navigator.pop`. A null
+/// result means the sheet was dismissed without a commit.
+sealed class TaskEditResult {
+  const TaskEditResult(this.task);
+
+  final Task task;
+}
+
+class TaskEditSaved extends TaskEditResult {
+  const TaskEditSaved(super.task);
+}
+
+class TaskEditDeleted extends TaskEditResult {
+  const TaskEditDeleted(super.task);
 }
 
 // ---- reusable bits --------------------------------------------------------
