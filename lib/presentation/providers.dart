@@ -9,6 +9,7 @@ import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/data/services/settings_service.dart';
 import 'package:loopweek/data/services/home_widget_service.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
+import 'package:loopweek/domain/models/first_day_of_week.dart';
 
 // ---- infra ----------------------------------------------------------------
 
@@ -79,6 +80,7 @@ class ActiveSettings extends ChangeNotifier {
 
   ColorTag colorTag = ColorTag.defaultValue;
   ThemeMode themeMode = ThemeMode.system;
+  FirstDayOfWeek firstDayOfWeek = FirstDayOfWeek.system;
   bool onboardingSeen = false;
   bool longPressHintSeen = false;
   bool alertsEnabled = true;
@@ -101,6 +103,7 @@ class ActiveSettings extends ChangeNotifier {
     final service = SettingsService(sp);
     colorTag = service.colorTag;
     themeMode = service.themeMode;
+    firstDayOfWeek = service.firstDayOfWeek;
     onboardingSeen = service.onboardingSeen;
     longPressHintSeen = service.longPressHintSeen;
     alertsEnabled = service.alertsEnabled;
@@ -122,6 +125,14 @@ class ActiveSettings extends ChangeNotifier {
     if (sp == null) return;
     await SettingsService(sp).setThemeMode(mode);
     themeMode = mode;
+    _notify();
+  }
+
+  Future<void> setFirstDayOfWeek(FirstDayOfWeek value) async {
+    final sp = _ref.read(sharedPreferencesProvider).valueOrNull;
+    if (sp == null) return;
+    await SettingsService(sp).setFirstDayOfWeek(value);
+    firstDayOfWeek = value;
     _notify();
   }
 

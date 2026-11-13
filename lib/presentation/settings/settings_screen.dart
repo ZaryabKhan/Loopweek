@@ -8,6 +8,7 @@ import 'package:loopweek/core/donation_mode.dart';
 import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
+import 'package:loopweek/domain/models/first_day_of_week.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/settings/donation_sheet.dart';
 import 'package:loopweek/presentation/settings/dummy_data.dart';
@@ -105,7 +106,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final repo = ref.read(taskRepositoryProvider);
     final today = ref.read(todayProvider);
     await repo.clearAllTasks();
-    final tasks = buildDummyTasksForWeek(today);
+    final tasks = buildDummyTasksForWeek(
+      today,
+      ref.read(settingsProvider).firstDayOfWeek,
+    );
     await repo.insertTaskBatch(tasks);
     final settings = ref.read(settingsProvider);
     await ref
@@ -149,6 +153,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             _LabelRow('Appearance'),
             const SizedBox(height: 8),
             const _ThemeSelector(),
+            const SizedBox(height: 16),
+            _LabelRow('First day of week'),
+            const SizedBox(height: 8),
+            _FirstDaySelector(),
             const SizedBox(height: 24),
             _LabelRow('Times & Alerts'),
             const SizedBox(height: 8),
@@ -434,6 +442,32 @@ class _ThemeSelector extends ConsumerWidget {
         await ref
             .read(homeWidgetServiceProvider)
             .pushTodaySnapshot(accent: active.colorTag, themeMode: mode);
+      },
+    );
+  }
+}
+
+class _FirstDaySelector extends ConsumerWidget {
+  const _FirstDaySelector();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final active = ref.watch(settingsProvider);
+    return AccentSegmented<FirstDayOfWeek>(
+      value: active.firstDayOfWeek,
+      options: const [
+        FirstDayOfWeek.system,
+        FirstDayOfWeek.sunday,
+        FirstDayOfWeek.monday,
+      ],
+      labelOf: (day) => switch (day) {
+        FirstDayOfWeek.system => 'System',
+        FirstDayOfWeek.sunday => 'Sunday',
+        FirstDayOfWeek.monday => 'Monday',
+      },
+      onChanged: (day) async {
+        Haptics.selection();
+        await active.setFirstDayOfWeek(day);
       },
     );
   }

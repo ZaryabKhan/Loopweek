@@ -1,16 +1,44 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'dart:io';
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:intl/intl.dart';
+
+import 'package:loopweek/domain/models/first_day_of_week.dart';
 import 'package:loopweek/domain/models/task.dart';
 import 'package:loopweek/presentation/providers.dart';
 
-/// The 7 calendar dates of the week containing [anchor] (Sunday-first).
+/// The 7 calendar dates of the week containing [anchor], starting on
+/// [firstDay].
 ///
 /// Always returns date-only [DateTime]s.
-List<DateTime> weekDatesFor(DateTime anchor) {
+List<DateTime> weekDatesFor(DateTime anchor, FirstDayOfWeek firstDay) {
   final DateTime normalized = DateTime(anchor.year, anchor.month, anchor.day);
-  final int offset = normalized.weekday % 7; // Sunday=0
-  final DateTime sunday = normalized.subtract(Duration(days: offset));
-  return List.generate(7, (i) => sunday.add(Duration(days: i)));
+  final int firstDayDart = _firstDayAsDartWeekday(firstDay);
+  final int offset = (normalized.weekday - firstDayDart) % 7;
+  final int positive = offset < 0 ? offset + 7 : offset;
+  final DateTime start = normalized.subtract(Duration(days: positive));
+  return List.generate(7, (i) => start.add(Duration(days: i)));
+}
+
+/// Resolves the setting to a Dart weekday constant (Mon=1 ... Sun=7).
+/// System reads the device locale's first-day-of-week from intl date
+/// symbols; falls back to Sunday when a locale has no data.
+int _firstDayAsDartWeekday(FirstDayOfWeek firstDay) {
+  switch (firstDay) {
+    case FirstDayOfWeek.sunday:
+      return DateTime.sunday;
+    case FirstDayOfWeek.monday:
+      return DateTime.monday;
+    case FirstDayOfWeek.system:
+      try {
+        final symbols = DateFormat.eEEE(Platform.localeName).dateSymbols;
+        // ICU numbering: 0 = Sunday ... 6 = Saturday.
+        final int icu = symbols.FIRSTDAYOFWEEK;
+        return icu == 0 ? DateTime.sunday : icu + 1;
+      } catch (_) {
+        return DateTime.sunday;
+      }
+  }
 }
 
 /// Today's date, midnight-truncated. Provided as a ProviderArg so tests can
@@ -21,9 +49,12 @@ final todayProvider = StateProvider<DateTime>(
 );
 
 /// The 7 days shown on the main week view.
-final weekDatesProvider = Provider<List<DateTime>>(
-  (ref) => weekDatesFor(ref.watch(todayProvider)),
-);
+final weekDatesProvider = Provider<List<DateTime>>((ref) {
+  return weekDatesFor(
+    ref.watch(todayProvider),
+    ref.watch(settingsProvider).firstDayOfWeek,
+  );
+});
 
 /// Stream of tasks for a given date, sorted by [sortOrder] then title.
 final tasksForDateProvider = StreamProvider.family<List<Task>, DateTime>((

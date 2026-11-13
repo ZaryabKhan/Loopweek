@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:loopweek/domain/models/color_tag.dart';
+import 'package:loopweek/domain/models/first_day_of_week.dart';
 
 /// Persistent user settings: chosen accent color, theme mode, and the
 /// "Times & Alerts" toggle.
@@ -14,6 +15,7 @@ class SettingsService {
 
   static const _kColorTag = 'settings.colorTag';
   static const _kThemeMode = 'settings.themeMode';
+  static const _kFirstDayOfWeek = 'settings.firstDayOfWeek';
   static const _kOnboardingSeen = 'onboarding.seen';
   static const _kLongPressHintSeen = 'onboarding.longPressHintSeen';
   static const _kAlertsEnabled = 'settings.alertsEnabled';
@@ -43,6 +45,12 @@ class SettingsService {
         : 'system';
     return _prefs.setString(_kThemeMode, value);
   }
+
+  /// Which day the week view starts on. 'system' follows the device locale.
+  FirstDayOfWeek get firstDayOfWeek =>
+      FirstDayOfWeek.fromName(_prefs.getString(_kFirstDayOfWeek));
+  Future<void> setFirstDayOfWeek(FirstDayOfWeek value) =>
+      _prefs.setString(_kFirstDayOfWeek, value.name);
 
   /// Whether the user has enabled the "Times & Alerts" master switch. This is
   /// the global gate for Loopweek task reminders.
