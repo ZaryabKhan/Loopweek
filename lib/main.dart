@@ -10,6 +10,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import 'package:loopweek/data/database/database.dart';
+import 'package:loopweek/data/repositories/task_repository.dart';
+import 'package:loopweek/data/services/home_widget_service.dart';
 import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/presentation/onboarding/welcome_sheet.dart';
 import 'package:loopweek/presentation/providers.dart';
@@ -46,6 +48,10 @@ Future<void> _widgetToggleCallback(Uri? uri) async {
       'UPDATE tasks SET is_completed = (1 - is_completed) WHERE id = ?;',
       [id],
     );
+    // Re-render the widget now; without this the checkbox state would only
+    // refresh on the next scheduled widget update (30 min) or the next
+    // app-side snapshot push.
+    await HomeWidgetService.refreshTaskSnapshot(TaskRepository(db));
     await db.close();
   } catch (e) {
     debugPrint('widget toggle callback error: $e');
