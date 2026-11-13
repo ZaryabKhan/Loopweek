@@ -6,6 +6,7 @@ import 'package:loopweek/core/haptics/haptics_service.dart';
 
 import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/domain/models/task.dart';
+import 'package:loopweek/presentation/archive/archive_sheet.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/week/day_header.dart';
 import 'package:loopweek/presentation/week/task_tile.dart';
@@ -132,6 +133,15 @@ class _TopBar extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          IconButton(
+            icon: const Icon(Icons.history_outlined),
+            tooltip: 'Past weeks',
+            color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+            onPressed: () {
+              Haptics.light();
+              showArchiveSheet(context);
+            },
           ),
           IconButton(
             icon: const Icon(Icons.settings_outlined),
