@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/core/theme/app_theme.dart';
 import 'package:loopweek/data/database/database.dart';
 import 'package:loopweek/data/repositories/task_repository.dart';
@@ -67,7 +68,10 @@ final reminderSyncProvider = FutureProvider<void>((ref) async {
     }
     final repo = ref.watch(taskRepositoryProvider);
     final upcoming = await repo.tasksWithRemindersFrom(DateTime.now());
-    await notifications.syncReminders(upcoming);
+    await notifications.syncReminders(
+      upcoming,
+      accent: AccentColors.of(settings.colorTag),
+    );
   } catch (e) {
     debugPrint('Reminder startup sync failed: $e');
   }

@@ -21,6 +21,7 @@ class SettingsService {
   static const _kAlertsEnabled = 'settings.alertsEnabled';
   static const _kHapticsEnabled = 'settings.hapticsEnabled';
   static const _kRitualLastSeenWeekStart = 'ritual.lastSeenWeekStart';
+  static const _kNotifLastDone = 'notif.lastDone';
 
   ColorTag get colorTag => ColorTag.fromName(_prefs.getString(_kColorTag));
   Future<void> setColorTag(ColorTag tag) =>
@@ -93,4 +94,11 @@ class SettingsService {
       _prefs.getBool('ritual.bannerDismissed:$weekStartIso') ?? false;
   Future<void> setRitualBannerDismissed(String weekStartIso) =>
       _prefs.setBool('ritual.bannerDismissed:$weekStartIso', true);
+
+  /// JSON `{"taskId","title","ts"}` written by the background "Mark done"
+  /// reminder action so the next app open can offer an undo window.
+  String? get notifLastDone => _prefs.getString(_kNotifLastDone);
+  Future<void> setNotifLastDone(String json) =>
+      _prefs.setString(_kNotifLastDone, json);
+  Future<void> clearNotifLastDone() => _prefs.remove(_kNotifLastDone);
 }

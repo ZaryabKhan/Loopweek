@@ -63,6 +63,10 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+        <!-- Required (since plugin v16) for notification action buttons:
+             pressing "Mark done" / "Remind tomorrow" targets this receiver,
+             which spawns the background isolate for the Dart handler. -->
+        <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
 
         <!-- home_widget background callbacks: the plugin's AAR manifest does
              not declare these components, so without this block the widget's

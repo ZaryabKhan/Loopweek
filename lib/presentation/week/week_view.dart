@@ -481,6 +481,8 @@ class _Body extends ConsumerWidget {
                   taskId: removed.id,
                   title: removed.title,
                   scheduled: fire,
+                  taskDate: removed.date,
+                  accent: AccentColors.of(settings.colorTag),
                 );
               }
             }
@@ -581,6 +583,8 @@ class _QuickActionsSheetState extends ConsumerState<_QuickActionsSheet> {
           taskId: moved.id,
           title: moved.title,
           scheduled: fire,
+          taskDate: moved.date,
+          accent: AccentColors.of(settings.colorTag),
         );
       }
     }

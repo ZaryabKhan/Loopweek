@@ -13,6 +13,7 @@
 - Home-screen widget gains a small 1x1 size with the same dark-mode behavior.
 - Print the current week to paper or PDF from Settings.
 - One-time "Finding Loopweek useful?" rating prompt on Google Play builds.
+- Reminder notifications gain Mark done and Remind tomorrow actions, with an undo window when the app is next opened.
 
 ## 1.1.0
 

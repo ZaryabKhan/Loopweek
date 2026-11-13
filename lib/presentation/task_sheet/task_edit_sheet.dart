@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:loopweek/core/haptics/haptics_service.dart';
+import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/domain/models/recurrence.dart';
 import 'package:loopweek/domain/models/task.dart';
@@ -656,6 +657,8 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
             taskId: saved.id,
             title: saved.title,
             scheduled: fire,
+            taskDate: saved.date,
+            accent: AccentColors.of(accentTag),
           );
         }
         // Each recurring occurrence is an independent row with its own id, so
@@ -668,6 +671,8 @@ class _TaskEditSheetState extends ConsumerState<TaskEditSheet> {
             taskId: occurrence.id,
             title: occurrence.title,
             scheduled: _occurrenceFire(occurrence),
+            taskDate: occurrence.date,
+            accent: AccentColors.of(accentTag),
           );
         }
       }

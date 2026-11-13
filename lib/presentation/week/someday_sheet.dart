@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
 
 import 'package:loopweek/core/haptics/haptics_service.dart';
+import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/domain/models/task.dart';
 import 'package:loopweek/presentation/providers.dart';
@@ -56,6 +57,8 @@ class _SomedaySheetState extends ConsumerState<SomedaySheet> {
           taskId: moved.id,
           title: moved.title,
           scheduled: fire,
+          taskDate: moved.date,
+          accent: AccentColors.of(settings.colorTag),
         );
       }
     }
