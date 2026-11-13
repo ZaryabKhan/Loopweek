@@ -155,6 +155,41 @@ void main() {
       expect(saturday.weekday, 6); // Aug 8 2026 is a Saturday (Mon=1..Sun=7).
     });
   });
+  group('migration v3 -> v5 (release 1.0.3 update path)', () {
+    late LoopweekDatabase db;
+
+    setUp(() {
+      db = _v3Database();
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    test('v3 rows survive the upgrade and stay visible to week queries',
+        () async {
+      // Opening runs the v3 -> v5 upgrade (is_someday + template tables).
+      final repo = TaskRepository(db);
+      final today = _d(2026, 8, 8);
+
+      final all = await repo.getAllTasks();
+      expect(all, hasLength(2));
+      expect(all.map((t) => t.id), containsAll(['keep1', 'keep2']));
+
+      // is_someday must default to 0 so upgraded rows are NOT filtered out
+      // of the week view / widget / archive queries.
+      final todayTasks = await repo.watchTasksForDate(today).first;
+      expect(todayTasks.map((t) => t.id), contains('keep1'));
+      expect(todayTasks.every((t) => t.isSomeday == false), isTrue);
+
+      final yesterdayTasks = await repo.watchTasksForDate(_d(2026, 8, 7)).first;
+      expect(yesterdayTasks.map((t) => t.id), contains('keep2'));
+
+      final version =
+          await db.customSelect('PRAGMA user_version;').getSingle();
+      expect(version.data['user_version'], 5);
+    });
+  });
 }
 
 /// The schema as a v3 install (release 1.0.3) has it: no is_someday column
@@ -198,39 +233,4 @@ LoopweekDatabase _v3Database() {
     );
     rawDb.execute('PRAGMA user_version = 3;');
   }));
-  group('migration v3 -> v5 (release 1.0.3 update path)', () {
-    late LoopweekDatabase db;
-
-    setUp(() {
-      db = _v3Database();
-    });
-
-    tearDown(() async {
-      await db.close();
-    });
-
-    test('v3 rows survive the upgrade and stay visible to week queries',
-        () async {
-      // Opening runs the v3 -> v5 upgrade (is_someday + template tables).
-      final repo = TaskRepository(db);
-      final today = _d(2026, 8, 8);
-
-      final all = await repo.getAllTasks();
-      expect(all, hasLength(2));
-      expect(all.map((t) => t.id), containsAll(['keep1', 'keep2']));
-
-      // is_someday must default to 0 so upgraded rows are NOT filtered out
-      // of the week view / widget / archive queries.
-      final todayTasks = await repo.watchTasksForDate(today).first;
-      expect(todayTasks.map((t) => t.id), contains('keep1'));
-      expect(todayTasks.every((t) => t.isSomeday == false), isTrue);
-
-      final yesterdayTasks = await repo.watchTasksForDate(_d(2026, 8, 7)).first;
-      expect(yesterdayTasks.map((t) => t.id), contains('keep2'));
-
-      final version =
-          await db.customSelect('PRAGMA user_version;').getSingle();
-      expect(version.data['user_version'], 5);
-    });
-  });
 }
