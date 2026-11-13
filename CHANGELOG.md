@@ -5,6 +5,7 @@
 - Added in-app donation tip tiers (small, medium, large) shown on Google Play builds; the polar.sh support link stays on GitHub builds.
 - Added a CI lane that builds the playstore-flavor AAB and uploads it to the Google Play internal testing track.
 - Home-screen widget checkboxes now work — taps register instantly.
+- Added a "Send feedback" row in Settings that opens a pre-addressed email with the app version in the subject.
 
 ## 1.0.3
 

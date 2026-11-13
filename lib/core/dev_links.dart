@@ -21,4 +21,8 @@ abstract final class DevLinks {
   /// Polar checkout where users can support the project with a one-off payment.
   static const String support =
       'https://buy.polar.sh/polar_cl_J3Nnh3YVrN1jMh8GdYaqZD3FjKvg9lsyR3eih1FkRt8';
+
+  /// Feedback mailbox for the Settings "Send feedback" row. Mailto only;
+  /// never wired to anything that transmits data on its own.
+  static const String feedbackEmail = 'appcodecraft@gmail.com';
 }

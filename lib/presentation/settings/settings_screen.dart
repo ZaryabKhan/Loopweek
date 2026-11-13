@@ -14,6 +14,7 @@ import 'package:loopweek/presentation/settings/dummy_data.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
 import 'package:loopweek/presentation/widgets/accent_segmented.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const _swatchLabel = {
@@ -191,6 +192,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: 'Developer profile',
               url: DevLinks.playStore,
             ),
+            _FeedbackTile(),
             if (donationMode == DonationMode.iap) ...[
               _IapDonationTile(),
             ] else
@@ -631,6 +633,56 @@ class _WidgetPreview extends ConsumerWidget {
             ),
         ],
       ),
+    );
+  }
+}
+
+/// Feedback entry: opens the user's mail app with a pre-addressed message.
+/// The subject carries the app version so reports are easy to triage.
+class _FeedbackTile extends StatelessWidget {
+  const _FeedbackTile();
+
+  Future<void> _open(BuildContext context) async {
+    final info = await PackageInfo.fromPlatform();
+    final uri = Uri(
+      scheme: 'mailto',
+      path: DevLinks.feedbackEmail,
+      queryParameters: {'subject': 'Loopweek ${info.version} feedback'},
+    );
+    final ok = await launchUrl(uri, mode: LaunchMode.externalApplication);
+    if (!ok && context.mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("Couldn't open the link.")));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      leading: Icon(Icons.mail_outline, color: theme.colorScheme.primary),
+      title: Text(
+        'Send feedback',
+        style: theme.textTheme.titleMedium?.copyWith(color: onSurface),
+      ),
+      subtitle: Text(
+        'Email the developer',
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: onSurface.withValues(alpha: 0.6),
+        ),
+      ),
+      trailing: Icon(
+        Icons.open_in_new,
+        size: 18,
+        color: onSurface.withValues(alpha: 0.5),
+      ),
+      onTap: () {
+        Haptics.light();
+        _open(context);
+      },
     );
   }
 }
