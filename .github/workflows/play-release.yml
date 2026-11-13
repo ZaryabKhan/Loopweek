@@ -55,6 +55,6 @@ jobs:
         with:
           serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
           packageName: com.appcodecraft.loopweek
-          releaseFiles: build/app/outputs/bundles/release/app-release.aab
+          releaseFiles: build/app/outputs/bundle/playstoreRelease/app-playstore-release.aab
           track: internal
           status: completed
