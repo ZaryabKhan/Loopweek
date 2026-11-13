@@ -156,3 +156,81 @@ void main() {
     });
   });
 }
+
+/// The schema as a v3 install (release 1.0.3) has it: no is_someday column
+/// and no week template tables yet.
+const List<String> _v3Schema = [
+  'CREATE TABLE IF NOT EXISTS "tasks" ('
+      '"id" TEXT NOT NULL, '
+      '"title" TEXT NOT NULL, '
+      '"date" INTEGER NOT NULL, '
+      '"is_completed" INTEGER NOT NULL DEFAULT 0 '
+      'CHECK ("is_completed" IN (0, 1)), '
+      '"color_tag" TEXT NOT NULL DEFAULT \'orange\', '
+      '"has_time" INTEGER NOT NULL DEFAULT 0 CHECK ("has_time" IN (0, 1)), '
+      '"time_minutes" INTEGER NULL, '
+      '"has_reminder" INTEGER NOT NULL DEFAULT 0 '
+      'CHECK ("has_reminder" IN (0, 1)), '
+      '"reminder_offset_days" INTEGER NOT NULL DEFAULT 0, '
+      '"recurrence" TEXT NOT NULL DEFAULT \'never\', '
+      '"recurrence_parent_id" TEXT NULL, '
+      '"sort_order" INTEGER NOT NULL DEFAULT 0, '
+      'PRIMARY KEY ("id"));',
+  'CREATE INDEX IF NOT EXISTS tasks_date_idx ON tasks(date);',
+  'CREATE INDEX IF NOT EXISTS tasks_parent_idx '
+      'ON tasks(recurrence_parent_id);',
+  'CREATE UNIQUE INDEX IF NOT EXISTS tasks_parent_date_uniq '
+      'ON tasks(recurrence_parent_id, date) '
+      'WHERE recurrence_parent_id IS NOT NULL;',
+];
+
+LoopweekDatabase _v3Database() {
+  return LoopweekDatabase.forTesting(NativeDatabase.memory(setup: (rawDb) {
+    for (final statement in _v3Schema) {
+      rawDb.execute(statement);
+    }
+    // Two rows a 1.0.3 user would have: one for 'today' (2026-08-08 in this
+    // fixture), one completed yesterday.
+    rawDb.execute(
+      "INSERT INTO tasks (id, title, date, is_completed) VALUES"
+      " ('keep1', 'Water the plants', ${_d(2026, 8, 8).millisecondsSinceEpoch ~/ 1000}, 0),"
+      " ('keep2', 'Laundry', ${_d(2026, 8, 7).millisecondsSinceEpoch ~/ 1000}, 1);",
+    );
+    rawDb.execute('PRAGMA user_version = 3;');
+  }));
+  group('migration v3 -> v5 (release 1.0.3 update path)', () {
+    late LoopweekDatabase db;
+
+    setUp(() {
+      db = _v3Database();
+    });
+
+    tearDown(() async {
+      await db.close();
+    });
+
+    test('v3 rows survive the upgrade and stay visible to week queries',
+        () async {
+      // Opening runs the v3 -> v5 upgrade (is_someday + template tables).
+      final repo = TaskRepository(db);
+      final today = _d(2026, 8, 8);
+
+      final all = await repo.getAllTasks();
+      expect(all, hasLength(2));
+      expect(all.map((t) => t.id), containsAll(['keep1', 'keep2']));
+
+      // is_someday must default to 0 so upgraded rows are NOT filtered out
+      // of the week view / widget / archive queries.
+      final todayTasks = await repo.watchTasksForDate(today).first;
+      expect(todayTasks.map((t) => t.id), contains('keep1'));
+      expect(todayTasks.every((t) => t.isSomeday == false), isTrue);
+
+      final yesterdayTasks = await repo.watchTasksForDate(_d(2026, 8, 7)).first;
+      expect(yesterdayTasks.map((t) => t.id), contains('keep2'));
+
+      final version =
+          await db.customSelect('PRAGMA user_version;').getSingle();
+      expect(version.data['user_version'], 5);
+    });
+  });
+}
