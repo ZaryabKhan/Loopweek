@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:drift/drift.dart' show Variable;
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -73,7 +74,10 @@ Future<bool?> completeTaskFromBackground(String id, {bool? markAsDone}) async {
     final executor = NativeDatabase.createInBackground(file);
     final db = LoopweekDatabase.forTesting(executor);
     final rows = await db
-        .customSelect('SELECT is_completed FROM tasks WHERE id = ?;', [id])
+        .customSelect(
+          'SELECT is_completed FROM tasks WHERE id = ?;',
+          variables: [Variable<String>(id)],
+        )
         .get();
     if (rows.isNotEmpty) {
       prior = ((rows.first.data['is_completed'] as int?) ?? 0) == 1;
@@ -228,6 +232,10 @@ Future<void> _handleForegroundReminderAction(
 Future<void> _markDoneFromForeground(ReminderPayload payload) async {
   final repo = _appContainer.read(taskRepositoryProvider);
   final notif = _appContainer.read(notificationServiceProvider);
+  final rootContext = _rootNavigatorKey.currentContext;
+  final messenger = rootContext == null
+      ? null
+      : ScaffoldMessenger.maybeOf(rootContext);
   final task = await repo.getTask(payload.taskId);
   if (task == null || task.isCompleted) {
     // Row gone or already done: the reminder is stale, dismiss it only.
@@ -237,9 +245,8 @@ Future<void> _markDoneFromForeground(ReminderPayload payload) async {
   await completeTaskFromBackground(payload.taskId, markAsDone: true);
   await notif.cancelTaskReminder(payload.taskId);
   _invalidateTaskStreams();
-  final context = _rootNavigatorKey.currentContext;
-  if (context == null) return;
-  ScaffoldMessenger.of(context).showSnackBar(
+  if (messenger == null) return;
+  messenger.showSnackBar(
     SnackBar(
       content: Text('Done from reminder · ${task.title}'),
       duration: const Duration(seconds: 6),
