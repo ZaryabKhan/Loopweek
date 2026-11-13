@@ -16,7 +16,7 @@ class LoopweekDatabase extends _$LoopweekDatabase {
   LoopweekDatabase.forTesting(super.e);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -40,6 +40,12 @@ class LoopweekDatabase extends _$LoopweekDatabase {
         // Added reminder_offset_days to persist the reminder lead time.
         await customStatement(
           'ALTER TABLE tasks ADD COLUMN reminder_offset_days INTEGER NOT NULL DEFAULT 0;',
+        );
+      }
+      if (from < 4) {
+        // Added is_someday for the Someday parking lot.
+        await customStatement(
+          'ALTER TABLE tasks ADD COLUMN is_someday INTEGER NOT NULL DEFAULT 0;',
         );
       }
     },

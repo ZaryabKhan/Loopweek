@@ -18,6 +18,7 @@ class Task {
   final Recurrence recurrence;
   final String? recurrenceParentId;
   final int sortOrder;
+  final bool isSomeday;
 
   const Task({
     required this.id,
@@ -32,6 +33,7 @@ class Task {
     this.recurrence = Recurrence.never,
     this.recurrenceParentId,
     this.sortOrder = 0,
+    this.isSomeday = false,
   });
 
   Task copyWith({
@@ -47,6 +49,7 @@ class Task {
     Recurrence? recurrence,
     String? recurrenceParentId,
     int? sortOrder,
+    bool? isSomeday,
     bool clearTime = false,
     bool clearRecurrenceParent = false,
   }) {
@@ -65,6 +68,7 @@ class Task {
           ? null
           : (recurrenceParentId ?? this.recurrenceParentId),
       sortOrder: sortOrder ?? this.sortOrder,
+      isSomeday: isSomeday ?? this.isSomeday,
     );
   }
 

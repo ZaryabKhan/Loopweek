@@ -9,6 +9,7 @@ import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/week/day_header.dart';
 import 'package:loopweek/presentation/week/task_tile.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
+import 'package:loopweek/presentation/week/someday_sheet.dart';
 import 'package:loopweek/presentation/task_sheet/task_edit_sheet.dart';
 import 'package:loopweek/presentation/settings/settings_screen.dart';
 import 'package:loopweek/presentation/widgets/accent_segmented.dart';
@@ -39,6 +40,8 @@ class WeekView extends ConsumerWidget {
     final expanded = ref.watch(expandedDayProvider);
     final accentTag = ref.watch(settingsProvider).colorTag;
     final accent = AccentColors.of(accentTag);
+    final somedayCount =
+        ref.watch(somedayTasksProvider).valueOrNull?.length ?? 0;
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
@@ -49,6 +52,20 @@ class WeekView extends ConsumerWidget {
             const SliverToBoxAdapter(child: Divider(height: 1)),
             const SliverToBoxAdapter(child: _WeekSwitcher()),
             ...days(ref, dates, expanded, today, accent),
+            if (somedayCount > 0)
+              SliverToBoxAdapter(
+                child: _SomedayStrip(
+                  count: somedayCount,
+                  onTap: () {
+                    showModalBottomSheet<void>(
+                      context: context,
+                      isScrollControlled: true,
+                      backgroundColor: Colors.transparent,
+                      builder: (_) => const SomedaySheet(),
+                    );
+                  },
+                ),
+              ),
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ],
         ),
@@ -152,6 +169,51 @@ class _WeekSwitcher extends ConsumerWidget {
           ref.read(expandedDayProvider.notifier).state =
               value == 0 ? today : today.add(const Duration(days: 7));
         },
+      ),
+    );
+  }
+}
+
+/// Flat row under the last day section opening the Someday parking sheet.
+/// Hidden entirely when nothing is parked.
+class _SomedayStrip extends StatelessWidget {
+  const _SomedayStrip({required this.count, required this.onTap});
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Semantics(
+      button: true,
+      label: 'Someday, $count tasks',
+      child: InkWell(
+        onTap: () {
+          Haptics.light();
+          onTap();
+        },
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  'SOMEDAY · $count',
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: 1.0,
+                  ),
+                ),
+              ),
+              Icon(
+                Icons.keyboard_arrow_up_rounded,
+                size: 22,
+                color: theme.colorScheme.onSurface.withValues(alpha: 0.55),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -69,6 +69,12 @@ final tasksForDateProvider = StreamProvider.family<List<Task>, DateTime>((
   return ref.watch(taskRepositoryProvider).watchTasksForDate(date);
 });
 
+/// Live list of parked (Someday) tasks, date-then-order. Drives the week
+/// view's Someday strip (count + visibility) and the parking sheet's rows.
+final somedayTasksProvider = StreamProvider<List<Task>>((ref) {
+  return ref.watch(taskRepositoryProvider).watchAllSomeday();
+});
+
 /// Tracks which day-section is currently expanded (accordion, single-open).
 final expandedDayProvider = StateProvider<DateTime?>((ref) {
   return ref.watch(todayProvider);

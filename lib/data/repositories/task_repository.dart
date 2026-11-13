@@ -23,10 +23,13 @@ class TaskRepository {
     // Half-open range [start, end): `isBetweenValues` is inclusive on both
     // ends, which would make a task stored at exactly next-day midnight (a
     // time-less task created for that day) match the previous day too.
+    // Parked (Someday) tasks keep their date but never show on a day.
     final query = _db.select(_db.tasks)
       ..where(
         (t) =>
-            t.date.isBiggerOrEqualValue(start) & t.date.isSmallerThanValue(end),
+            t.date.isBiggerOrEqualValue(start) &
+            t.date.isSmallerThanValue(end) &
+            t.isSomeday.equals(false),
       )
       ..orderBy([
         (t) => OrderingTerm.asc(t.sortOrder),
@@ -41,9 +44,26 @@ class TaskRepository {
   }
 
   /// Live count of all tasks, used by the week view to tell a fresh install
-  /// (show the first-task orientation) apart from a populated week.
+  /// (show the first-task orientation) apart from a populated week. Parked
+  /// (Someday) tasks don't count as week content.
   Stream<int> watchTaskCount() {
-    return _db.select(_db.tasks).watch().map((rows) => rows.length);
+    return (_db.select(_db.tasks)
+          ..where((t) => t.isSomeday.equals(false)))
+        .watch()
+        .map((rows) => rows.length);
+  }
+
+  /// Live list of parked (Someday) tasks, ordered by their preserved date
+  /// then in-day order. Feeds the week view's Someday strip and the parking
+  /// sheet.
+  Stream<List<Task>> watchAllSomeday() {
+    final query = _db.select(_db.tasks)
+      ..where((t) => t.isSomeday.equals(true))
+      ..orderBy([
+        (t) => OrderingTerm.asc(t.date),
+        (t) => OrderingTerm.asc(t.sortOrder),
+      ]);
+    return query.map(_mapper.toDomain).watch();
   }
 
   Future<Task?> getTask(String id) async {
@@ -69,14 +89,16 @@ class TaskRepository {
   /// Every row that carries a reminder and whose date is on or after the
   /// start of [date]'s day — standalone tasks, recurring rules, and
   /// materialized occurrences alike. Feeds the startup reminder reconciler,
-  /// which re-schedules anything the OS or the plugin lost.
+  /// which re-schedules anything the OS or the plugin lost. Parked (Someday)
+  /// tasks are excluded: they must never fire a reminder.
   Future<List<Task>> tasksWithRemindersFrom(DateTime date) async {
     final start = DateTime(date.year, date.month, date.day);
     final rows = await (_db.select(_db.tasks)
           ..where(
             (t) =>
                 t.hasReminder.equals(true) &
-                t.date.isBiggerOrEqualValue(start),
+                t.date.isBiggerOrEqualValue(start) &
+                t.isSomeday.equals(false),
           )).get();
     return rows.map(_mapper.toDomain).toList();
   }
@@ -145,6 +167,44 @@ class TaskRepository {
         );
       }
     });
+  }
+
+  /// Parks or unparks [id] in place. The date is untouched, so unparking via
+  /// the editor restores the task to the day it was parked from.
+  Future<void> setSomeday({required String id, required bool someday}) async {
+    await (_db.update(_db.tasks)..where((t) => t.id.equals(id))).write(
+      TasksCompanion(isSomeday: Value(someday)),
+    );
+  }
+
+  /// Unparks [id] onto [date] at the end of that day's list
+  /// (sortOrder = max + 1). Used by the Someday sheet's day picker; the
+  /// editor's unpark path keeps the original date instead.
+  Future<void> moveTaskToEndOfDay({
+    required String id,
+    required DateTime date,
+  }) async {
+    final start = DateTime(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1));
+    final rows = await (_db.select(_db.tasks)
+          ..where(
+            (t) =>
+                t.date.isBiggerOrEqualValue(start) &
+                t.date.isSmallerThanValue(end) &
+                t.isSomeday.equals(false),
+          ))
+        .get();
+    final maxSort = rows.fold<int>(
+      -1,
+      (max, row) => row.sortOrder > max ? row.sortOrder : max,
+    );
+    await (_db.update(_db.tasks)..where((t) => t.id.equals(id))).write(
+      TasksCompanion(
+        date: Value(start),
+        isSomeday: Value(false),
+        sortOrder: Value(maxSort + 1),
+      ),
+    );
   }
 
   // ---- recurrence ---------------------------------------------------------

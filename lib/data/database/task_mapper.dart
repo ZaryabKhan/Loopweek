@@ -28,6 +28,7 @@ class TaskMapper {
       recurrence: Recurrence.fromName(row.recurrence),
       recurrenceParentId: row.recurrenceParentId,
       sortOrder: row.sortOrder,
+      isSomeday: row.isSomeday,
     );
   }
 
@@ -49,6 +50,7 @@ class TaskMapper {
       recurrence: Value(task.recurrence.name),
       recurrenceParentId: Value(task.recurrenceParentId),
       sortOrder: Value(task.sortOrder),
+      isSomeday: Value(task.isSomeday),
     );
   }
 }

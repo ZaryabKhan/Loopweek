@@ -149,6 +149,21 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     requiredDuringInsert: false,
     defaultValue: const Constant(0),
   );
+  static const VerificationMeta _isSomedayMeta = const VerificationMeta(
+    'isSomeday',
+  );
+  @override
+  late final GeneratedColumn<bool> isSomeday = GeneratedColumn<bool>(
+    'is_someday',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("is_someday" IN (0, 1))',
+    ),
+    defaultValue: const Constant(false),
+  );
   @override
   List<GeneratedColumn> get $columns => [
     id,
@@ -163,6 +178,7 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
     recurrence,
     recurrenceParentId,
     sortOrder,
+    isSomeday,
   ];
   @override
   String get aliasedName => _alias ?? actualTableName;
@@ -266,6 +282,12 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         sortOrder.isAcceptableOrUnknown(data['sort_order']!, _sortOrderMeta),
       );
     }
+    if (data.containsKey('is_someday')) {
+      context.handle(
+        _isSomedayMeta,
+        isSomeday.isAcceptableOrUnknown(data['is_someday']!, _isSomedayMeta),
+      );
+    }
     return context;
   }
 
@@ -323,6 +345,10 @@ class $TasksTable extends Tasks with TableInfo<$TasksTable, TaskRow> {
         DriftSqlType.int,
         data['${effectivePrefix}sort_order'],
       )!,
+      isSomeday: attachedDatabase.typeMapping.read(
+        DriftSqlType.bool,
+        data['${effectivePrefix}is_someday'],
+      )!,
     );
   }
 
@@ -345,6 +371,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
   final String recurrence;
   final String? recurrenceParentId;
   final int sortOrder;
+  final bool isSomeday;
   const TaskRow({
     required this.id,
     required this.title,
@@ -358,6 +385,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     required this.recurrence,
     this.recurrenceParentId,
     required this.sortOrder,
+    required this.isSomeday,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -378,6 +406,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       map['recurrence_parent_id'] = Variable<String>(recurrenceParentId);
     }
     map['sort_order'] = Variable<int>(sortOrder);
+    map['is_someday'] = Variable<bool>(isSomeday);
     return map;
   }
 
@@ -399,6 +428,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ? const Value.absent()
           : Value(recurrenceParentId),
       sortOrder: Value(sortOrder),
+      isSomeday: Value(isSomeday),
     );
   }
 
@@ -422,6 +452,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
         json['recurrenceParentId'],
       ),
       sortOrder: serializer.fromJson<int>(json['sortOrder']),
+      isSomeday: serializer.fromJson<bool>(json['isSomeday']),
     );
   }
   @override
@@ -440,6 +471,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
       'recurrence': serializer.toJson<String>(recurrence),
       'recurrenceParentId': serializer.toJson<String?>(recurrenceParentId),
       'sortOrder': serializer.toJson<int>(sortOrder),
+      'isSomeday': serializer.toJson<bool>(isSomeday),
     };
   }
 
@@ -456,6 +488,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     String? recurrence,
     Value<String?> recurrenceParentId = const Value.absent(),
     int? sortOrder,
+    bool? isSomeday,
   }) => TaskRow(
     id: id ?? this.id,
     title: title ?? this.title,
@@ -471,6 +504,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
         ? recurrenceParentId.value
         : this.recurrenceParentId,
     sortOrder: sortOrder ?? this.sortOrder,
+    isSomeday: isSomeday ?? this.isSomeday,
   );
   TaskRow copyWithCompanion(TasksCompanion data) {
     return TaskRow(
@@ -498,6 +532,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ? data.recurrenceParentId.value
           : this.recurrenceParentId,
       sortOrder: data.sortOrder.present ? data.sortOrder.value : this.sortOrder,
+      isSomeday: data.isSomeday.present ? data.isSomeday.value : this.isSomeday,
     );
   }
 
@@ -515,7 +550,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           ..write('reminderOffsetDays: $reminderOffsetDays, ')
           ..write('recurrence: $recurrence, ')
           ..write('recurrenceParentId: $recurrenceParentId, ')
-          ..write('sortOrder: $sortOrder')
+          ..write('sortOrder: $sortOrder, ')
+          ..write('isSomeday: $isSomeday')
           ..write(')'))
         .toString();
   }
@@ -534,6 +570,7 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
     recurrence,
     recurrenceParentId,
     sortOrder,
+    isSomeday,
   );
   @override
   bool operator ==(Object other) =>
@@ -550,7 +587,8 @@ class TaskRow extends DataClass implements Insertable<TaskRow> {
           other.reminderOffsetDays == this.reminderOffsetDays &&
           other.recurrence == this.recurrence &&
           other.recurrenceParentId == this.recurrenceParentId &&
-          other.sortOrder == this.sortOrder);
+          other.sortOrder == this.sortOrder &&
+          other.isSomeday == this.isSomeday);
 }
 
 class TasksCompanion extends UpdateCompanion<TaskRow> {
@@ -566,6 +604,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
   final Value<String> recurrence;
   final Value<String?> recurrenceParentId;
   final Value<int> sortOrder;
+  final Value<bool> isSomeday;
   final Value<int> rowid;
   const TasksCompanion({
     this.id = const Value.absent(),
@@ -580,6 +619,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.recurrence = const Value.absent(),
     this.recurrenceParentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.isSomeday = const Value.absent(),
     this.rowid = const Value.absent(),
   });
   TasksCompanion.insert({
@@ -595,6 +635,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     this.recurrence = const Value.absent(),
     this.recurrenceParentId = const Value.absent(),
     this.sortOrder = const Value.absent(),
+    this.isSomeday = const Value.absent(),
     this.rowid = const Value.absent(),
   }) : id = Value(id),
        title = Value(title),
@@ -612,6 +653,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Expression<String>? recurrence,
     Expression<String>? recurrenceParentId,
     Expression<int>? sortOrder,
+    Expression<bool>? isSomeday,
     Expression<int>? rowid,
   }) {
     return RawValuesInsertable({
@@ -629,6 +671,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       if (recurrenceParentId != null)
         'recurrence_parent_id': recurrenceParentId,
       if (sortOrder != null) 'sort_order': sortOrder,
+      if (isSomeday != null) 'is_someday': isSomeday,
       if (rowid != null) 'rowid': rowid,
     });
   }
@@ -646,6 +689,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     Value<String>? recurrence,
     Value<String?>? recurrenceParentId,
     Value<int>? sortOrder,
+    Value<bool>? isSomeday,
     Value<int>? rowid,
   }) {
     return TasksCompanion(
@@ -661,6 +705,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
       recurrence: recurrence ?? this.recurrence,
       recurrenceParentId: recurrenceParentId ?? this.recurrenceParentId,
       sortOrder: sortOrder ?? this.sortOrder,
+      isSomeday: isSomeday ?? this.isSomeday,
       rowid: rowid ?? this.rowid,
     );
   }
@@ -704,6 +749,9 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
     if (sortOrder.present) {
       map['sort_order'] = Variable<int>(sortOrder.value);
     }
+    if (isSomeday.present) {
+      map['is_someday'] = Variable<bool>(isSomeday.value);
+    }
     if (rowid.present) {
       map['rowid'] = Variable<int>(rowid.value);
     }
@@ -725,6 +773,7 @@ class TasksCompanion extends UpdateCompanion<TaskRow> {
           ..write('recurrence: $recurrence, ')
           ..write('recurrenceParentId: $recurrenceParentId, ')
           ..write('sortOrder: $sortOrder, ')
+          ..write('isSomeday: $isSomeday, ')
           ..write('rowid: $rowid')
           ..write(')'))
         .toString();
@@ -756,6 +805,7 @@ typedef $$TasksTableCreateCompanionBuilder =
       Value<String> recurrence,
       Value<String?> recurrenceParentId,
       Value<int> sortOrder,
+      Value<bool> isSomeday,
       Value<int> rowid,
     });
 typedef $$TasksTableUpdateCompanionBuilder =
@@ -772,6 +822,7 @@ typedef $$TasksTableUpdateCompanionBuilder =
       Value<String> recurrence,
       Value<String?> recurrenceParentId,
       Value<int> sortOrder,
+      Value<bool> isSomeday,
       Value<int> rowid,
     });
 
@@ -841,6 +892,11 @@ class $$TasksTableFilterComposer
 
   ColumnFilters<int> get sortOrder => $composableBuilder(
     column: $table.sortOrder,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get isSomeday => $composableBuilder(
+    column: $table.isSomeday,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -913,6 +969,11 @@ class $$TasksTableOrderingComposer
     column: $table.sortOrder,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get isSomeday => $composableBuilder(
+    column: $table.isSomeday,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$TasksTableAnnotationComposer
@@ -971,6 +1032,9 @@ class $$TasksTableAnnotationComposer
 
   GeneratedColumn<int> get sortOrder =>
       $composableBuilder(column: $table.sortOrder, builder: (column) => column);
+
+  GeneratedColumn<bool> get isSomeday =>
+      $composableBuilder(column: $table.isSomeday, builder: (column) => column);
 }
 
 class $$TasksTableTableManager
@@ -1013,6 +1077,7 @@ class $$TasksTableTableManager
                 Value<String> recurrence = const Value.absent(),
                 Value<String?> recurrenceParentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<bool> isSomeday = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TasksCompanion(
                 id: id,
@@ -1027,6 +1092,7 @@ class $$TasksTableTableManager
                 recurrence: recurrence,
                 recurrenceParentId: recurrenceParentId,
                 sortOrder: sortOrder,
+                isSomeday: isSomeday,
                 rowid: rowid,
               ),
           createCompanionCallback:
@@ -1043,6 +1109,7 @@ class $$TasksTableTableManager
                 Value<String> recurrence = const Value.absent(),
                 Value<String?> recurrenceParentId = const Value.absent(),
                 Value<int> sortOrder = const Value.absent(),
+                Value<bool> isSomeday = const Value.absent(),
                 Value<int> rowid = const Value.absent(),
               }) => TasksCompanion.insert(
                 id: id,
@@ -1057,6 +1124,7 @@ class $$TasksTableTableManager
                 recurrence: recurrence,
                 recurrenceParentId: recurrenceParentId,
                 sortOrder: sortOrder,
+                isSomeday: isSomeday,
                 rowid: rowid,
               ),
           withReferenceMapper: (p0) => p0
