@@ -48,10 +48,15 @@ final todayProvider = StateProvider<DateTime>(
       DateTime(DateTime.now().year, DateTime.now().month, DateTime.now().day),
 );
 
-/// The 7 days shown on the main week view.
+/// Which week is shown on the main view: 0 = this week, 7 = next week.
+/// Session-only — the view always starts on this week.
+final weekOffsetProvider = StateProvider<int>((ref) => 0);
+
+/// The 7 days shown on the main week view, anchored on today plus the
+/// [weekOffsetProvider] day-shift.
 final weekDatesProvider = Provider<List<DateTime>>((ref) {
   return weekDatesFor(
-    ref.watch(todayProvider),
+    ref.watch(todayProvider).add(Duration(days: ref.watch(weekOffsetProvider))),
     ref.watch(settingsProvider).firstDayOfWeek,
   );
 });

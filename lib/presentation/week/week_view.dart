@@ -11,6 +11,7 @@ import 'package:loopweek/presentation/week/task_tile.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
 import 'package:loopweek/presentation/task_sheet/task_edit_sheet.dart';
 import 'package:loopweek/presentation/settings/settings_screen.dart';
+import 'package:loopweek/presentation/widgets/accent_segmented.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
 
 /// Main week view — one screen, seven days, nothing else.
@@ -44,8 +45,9 @@ class WeekView extends ConsumerWidget {
       body: SafeArea(
         child: CustomScrollView(
           slivers: [
-            SliverToBoxAdapter(child: _TopBar(today: today)),
+            SliverToBoxAdapter(child: _TopBar(shownWeekStart: dates.first)),
             const SliverToBoxAdapter(child: Divider(height: 1)),
+            const SliverToBoxAdapter(child: _WeekSwitcher()),
             ...days(ref, dates, expanded, today, accent),
             const SliverToBoxAdapter(child: SizedBox(height: 40)),
           ],
@@ -84,8 +86,8 @@ class WeekView extends ConsumerWidget {
 }
 
 class _TopBar extends StatelessWidget {
-  const _TopBar({required this.today});
-  final DateTime today;
+  const _TopBar({required this.shownWeekStart});
+  final DateTime shownWeekStart;
 
   @override
   Widget build(BuildContext context) {
@@ -107,7 +109,7 @@ class _TopBar extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  DateFormat('MMMM yyyy').format(today),
+                  DateFormat('MMMM yyyy').format(shownWeekStart),
                   style: theme.textTheme.bodySmall,
                 ),
               ],
@@ -123,6 +125,33 @@ class _TopBar extends StatelessWidget {
             },
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// This-week / next-week segmented swap. Session-only: switching re-anchors
+/// the accordion to the matching week's "today" position so exactly one day
+/// stays open with the same orientation.
+class _WeekSwitcher extends ConsumerWidget {
+  const _WeekSwitcher();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final offset = ref.watch(weekOffsetProvider);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      child: AccentSegmented<int>(
+        value: offset,
+        options: const [0, 7],
+        labelOf: (offset) => offset == 0 ? 'This week' : 'Next week',
+        onChanged: (value) {
+          Haptics.selection();
+          ref.read(weekOffsetProvider.notifier).state = value;
+          final today = ref.read(todayProvider);
+          ref.read(expandedDayProvider.notifier).state =
+              value == 0 ? today : today.add(const Duration(days: 7));
+        },
       ),
     );
   }
