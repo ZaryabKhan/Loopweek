@@ -40,6 +40,8 @@ dependencies:
   url_launcher: ^6.3.2
   package_info_plus: ^10.2.2
   file_picker: ^13.3.3
+  printing: ^5.14.3
+  pdf: ^3.11.3
 
   # Donations — Google Play in-app purchase tip tiers (playstore flavor only).
   # Compiled in for every build but only invoked on the IAP path; the github

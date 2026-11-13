@@ -8,6 +8,7 @@ import 'package:loopweek/core/donation_mode.dart';
 import 'package:loopweek/core/haptics/haptics_service.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/data/services/backup_service.dart';
+import 'package:loopweek/data/services/week_print_service.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
 import 'package:loopweek/domain/models/first_day_of_week.dart';
 import 'package:loopweek/domain/models/task.dart';
@@ -19,6 +20,7 @@ import 'package:loopweek/presentation/week/week_providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
 import 'package:loopweek/presentation/widgets/accent_segmented.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 const _swatchLabel = {
@@ -135,6 +137,25 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     ).showSnackBar(SnackBar(content: Text(message)));
   }
 
+  /// Opens the Android print sheet with an A4 snapshot of the shown week.
+  /// Dates and per-date tasks are read at tap time, so the sheet always
+  /// matches what's on screen, offset included.
+  Future<void> _printShownWeek() async {
+    Haptics.light();
+    final weekDates = ref.read(weekDatesProvider);
+    final repo = ref.read(taskRepositoryProvider);
+    final accent = AccentColors.of(ref.read(settingsProvider).colorTag);
+    await Printing.layoutPdf(
+      onLayout: (format) => buildWeekPdf(
+        format,
+        weekDates: weekDates,
+        // .first takes the watch stream's current snapshot.
+        tasksForDate: (date) => repo.watchTasksForDate(date).first,
+        accent: accent,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
@@ -219,17 +240,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             const SizedBox(height: 24),
             _LabelRow('Backup'),
             const SizedBox(height: 8),
-            _BackupRow(
+            _SettingsRow(
               icon: Icons.file_download_outlined,
               title: 'Export backup',
               subtitle: 'Save tasks and settings to a JSON file',
               onTap: () => _runBackup((backup) => backup.exportBackup()),
             ),
-            _BackupRow(
+            _SettingsRow(
               icon: Icons.file_upload_outlined,
               title: 'Import backup',
               subtitle: 'Restore from a Loopweek backup file',
               onTap: () => _runBackup((backup) => backup.importBackup()),
+            ),
+            const SizedBox(height: 24),
+            _LabelRow('Print'),
+            const SizedBox(height: 8),
+            _SettingsRow(
+              icon: Icons.print_outlined,
+              title: 'Print this week',
+              subtitle: 'A4 sheet via Android print',
+              onTap: _printShownWeek,
             ),
             const SizedBox(height: 24),
             _LabelRow('Templates'),
@@ -755,11 +785,12 @@ class _FeedbackTile extends StatelessWidget {
   }
 }
 
-/// A backup entry row (export / import). Same visual signature as
-/// [_IapDonationTile]; the haptic and the result snackbar live in
-/// [_SettingsScreenState._runBackup], which the [onTap] closure wires up.
-class _BackupRow extends StatelessWidget {
-  const _BackupRow({
+/// A settings entry row (backup export / import, print). Same visual
+/// signature as [_IapDonationTile]; the backup haptic and result snackbar
+/// live in [_SettingsScreenState._runBackup], which the [onTap] closure
+/// wires up.
+class _SettingsRow extends StatelessWidget {
+  const _SettingsRow({
     required this.icon,
     required this.title,
     required this.subtitle,
@@ -839,7 +870,7 @@ class _TemplatesSection extends ConsumerWidget {
   }
 }
 
-/// A Templates entry row. Same ListTile signature as [_BackupRow], plus an
+/// A Templates entry row. Same ListTile signature as [_SettingsRow], plus an
 /// [enabled] flag so the save row can gray out on an empty week.
 class _TemplateRow extends StatelessWidget {
   const _TemplateRow({
