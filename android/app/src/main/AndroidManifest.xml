@@ -63,6 +63,19 @@
                 <action android:name="com.htc.intent.action.QUICKBOOT_POWERON"/>
             </intent-filter>
         </receiver>
+
+        <!-- home_widget background callbacks: the plugin's AAR manifest does
+             not declare these components, so without this block the widget's
+             PendingIntents target a receiver that does not exist and taps are
+             silently dropped. The service is a JobIntentService and must carry
+             BIND_JOB_SERVICE or JobScheduler refuses to run it. -->
+        <receiver
+            android:name="es.antonborri.home_widget.HomeWidgetBackgroundReceiver"
+            android:exported="false" />
+        <service
+            android:name="es.antonborri.home_widget.HomeWidgetBackgroundService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>
     <!-- Required to query activities that can process text, see:
          https://developer.android.com/training/package-visibility and

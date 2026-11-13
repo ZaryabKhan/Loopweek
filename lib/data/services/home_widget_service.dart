@@ -34,14 +34,7 @@ class HomeWidgetService {
       DateTime.now().day,
     );
     final tasks = await _repository.watchTasksForDate(now).first;
-    final sorted = [...tasks]
-      ..sort((a, b) {
-        if (a.isCompleted != b.isCompleted) {
-          return a.isCompleted ? 1 : -1;
-        }
-        final sa = a.sortOrder.compareTo(b.sortOrder);
-        return sa != 0 ? sa : a.title.compareTo(b.title);
-      });
+    final sorted = sortForSnapshot(tasks);
 
     // Render up to 10 entries; the native side decides visible count per size.
     // Marshalled as a single newline-separated string for reliable native
@@ -61,14 +54,36 @@ class HomeWidgetService {
     );
   }
 
-  /// Background callback entrypoint: toggle a task's completed state by id
-  /// (the widget packs the task id into the intent extras under
-  /// `loopweek.toggle`).
-  Future<void> handleToggleFromWidget(dynamic rawId) async {
-    if (rawId is! String || rawId.isEmpty) return;
-    final task = await _repository.getTask(rawId);
-    if (task == null) return;
-    await _repository.setCompleted(id: rawId, completed: !task.isCompleted);
+  /// Re-renders the widget task list after a background toggle from a widget
+  /// checkbox. Accent/theme stay at their last pushed values; only the task
+  /// snapshot changes. Static and repository-taken because the background
+  /// isolate has no Riverpod graph — main.dart builds a fresh repository.
+  static Future<void> refreshTaskSnapshot(TaskRepository repository) async {
+    final DateTime now = DateTime(
+      DateTime.now().year,
+      DateTime.now().month,
+      DateTime.now().day,
+    );
+    final tasks = await repository.watchTasksForDate(now).first;
+    final snapshot = sortForSnapshot(tasks).take(10).map(_encodeTask).join('\n');
+    await HomeWidget.saveWidgetData(_kTasks, snapshot);
+    await HomeWidget.updateWidget(
+      androidName: androidName,
+      qualifiedAndroidName: 'com.appcodecraft.loopweek.LoopweekWidgetProvider',
+    );
+  }
+
+  /// Incomplete tasks first, then by sort order, then title — mirrors the
+  /// week view's today list ordering.
+  static List<Task> sortForSnapshot(List<Task> tasks) {
+    return [...tasks]
+      ..sort((a, b) {
+        if (a.isCompleted != b.isCompleted) {
+          return a.isCompleted ? 1 : -1;
+        }
+        final sa = a.sortOrder.compareTo(b.sortOrder);
+        return sa != 0 ? sa : a.title.compareTo(b.title);
+      });
   }
 }
 
