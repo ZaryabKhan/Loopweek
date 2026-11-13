@@ -20,6 +20,7 @@ class SettingsService {
   static const _kLongPressHintSeen = 'onboarding.longPressHintSeen';
   static const _kAlertsEnabled = 'settings.alertsEnabled';
   static const _kHapticsEnabled = 'settings.hapticsEnabled';
+  static const _kRitualLastSeenWeekStart = 'ritual.lastSeenWeekStart';
 
   ColorTag get colorTag => ColorTag.fromName(_prefs.getString(_kColorTag));
   Future<void> setColorTag(ColorTag tag) =>
@@ -78,4 +79,18 @@ class SettingsService {
   bool get longPressHintSeen => _prefs.getBool(_kLongPressHintSeen) ?? false;
   Future<void> setLongPressHintSeen() =>
       _prefs.setBool(_kLongPressHintSeen, true);
+
+  /// Week start (date-only ISO string, yyyy-MM-dd) the fresh-week ritual
+  /// banner was last rendered for — written at render, once per week.
+  String? get ritualLastSeenWeekStart =>
+      _prefs.getString(_kRitualLastSeenWeekStart);
+  Future<void> setRitualLastSeenWeekStart(String weekStartIso) =>
+      _prefs.setString(_kRitualLastSeenWeekStart, weekStartIso);
+
+  /// Per-week dismissal flag for the ritual banner, keyed by the week's
+  /// start date so a new week re-arms automatically.
+  bool isRitualBannerDismissed(String weekStartIso) =>
+      _prefs.getBool('ritual.bannerDismissed:$weekStartIso') ?? false;
+  Future<void> setRitualBannerDismissed(String weekStartIso) =>
+      _prefs.setBool('ritual.bannerDismissed:$weekStartIso', true);
 }

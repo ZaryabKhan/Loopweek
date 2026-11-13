@@ -9,6 +9,7 @@ import 'package:loopweek/domain/models/task.dart';
 import 'package:loopweek/presentation/archive/archive_sheet.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/week/day_header.dart';
+import 'package:loopweek/presentation/week/ritual_banner.dart';
 import 'package:loopweek/presentation/week/task_tile.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
 import 'package:loopweek/presentation/week/someday_sheet.dart';
@@ -53,6 +54,7 @@ class WeekView extends ConsumerWidget {
             SliverToBoxAdapter(child: _TopBar(shownWeekStart: dates.first)),
             const SliverToBoxAdapter(child: Divider(height: 1)),
             const SliverToBoxAdapter(child: _WeekSwitcher()),
+            const SliverToBoxAdapter(child: RitualBanner()),
             ...days(ref, dates, expanded, today, accent),
             if (somedayCount > 0)
               SliverToBoxAdapter(
