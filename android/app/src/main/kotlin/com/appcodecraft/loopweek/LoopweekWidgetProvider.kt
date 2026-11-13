@@ -58,8 +58,40 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
             R.id.widget_row7, R.id.widget_row8, R.id.widget_row9,
             R.id.widget_row10
         )
+        private val BOX_VIEWS = intArrayOf(
+            R.id.widget_box1, R.id.widget_box2, R.id.widget_box3,
+            R.id.widget_box4, R.id.widget_box5, R.id.widget_box6,
+            R.id.widget_box7, R.id.widget_box8, R.id.widget_box9,
+            R.id.widget_box10
+        )
+        private val CHECK_VIEWS = intArrayOf(
+            R.id.widget_check1, R.id.widget_check2, R.id.widget_check3,
+            R.id.widget_check4, R.id.widget_check5, R.id.widget_check6,
+            R.id.widget_check7, R.id.widget_check8, R.id.widget_check9,
+            R.id.widget_check10
+        )
         private val SMALL_ROW_VIEWS = intArrayOf(
             R.id.widget_small_row1, R.id.widget_small_row2
+        )
+        private val SMALL_BOX_VIEWS = intArrayOf(
+            R.id.widget_small_box1, R.id.widget_small_box2
+        )
+        private val SMALL_CHECK_VIEWS = intArrayOf(
+            R.id.widget_small_check1, R.id.widget_small_check2
+        )
+
+        // Checkbox drawables per accent key (see [accentKeyOf]).
+        private val OPEN_BOX_DRAWABLES = mapOf(
+            "orange" to R.drawable.wbox_open_orange,
+            "pink" to R.drawable.wbox_open_pink,
+            "blue" to R.drawable.wbox_open_blue,
+            "green" to R.drawable.wbox_open_green,
+        )
+        private val DONE_BOX_DRAWABLES = mapOf(
+            "orange" to R.drawable.wbox_done_orange,
+            "pink" to R.drawable.wbox_done_pink,
+            "blue" to R.drawable.wbox_done_blue,
+            "green" to R.drawable.wbox_done_green,
         )
 
         /** One launcher cell or narrower (OPTION_APPWIDGET_MIN_WIDTH <= 140dp)
@@ -103,9 +135,12 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
     ) {
         val small = isSmallSize(appWidgetManager, appWidgetId)
         val rowViews = if (small) SMALL_ROW_VIEWS else ROW_VIEWS
+        val boxViews = if (small) SMALL_BOX_VIEWS else BOX_VIEWS
+        val checkViews = if (small) SMALL_CHECK_VIEWS else CHECK_VIEWS
         val maxRows = rowViews.size
 
         val accent = parseAccent(prefs.getString(KEY_ACCENT, null))
+        val accentKey = accentKeyOf(accent)
         val rows = parseTasks(prefs.getString(KEY_TASKS, null)).take(maxRows)
 
         val dark = isDark(context, prefs)
@@ -128,9 +163,13 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
             views.setTextViewText(rowViews[0], EMPTY_TEXT)
             views.setTextColor(rowViews[0], faded(defaultText))
             views.setViewVisibility(rowViews[0], View.VISIBLE)
+            views.setViewVisibility(boxViews[0], View.GONE)
+            views.setViewVisibility(checkViews[0], View.GONE)
             for (i in 1 until maxRows) {
                 views.setTextViewText(rowViews[i], "")
                 views.setViewVisibility(rowViews[i], View.GONE)
+                views.setViewVisibility(boxViews[i], View.GONE)
+                views.setViewVisibility(checkViews[i], View.GONE)
             }
             appWidgetManager.updateAppWidget(appWidgetId, views)
             return
@@ -140,6 +179,14 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
             val viewId = rowViews[i]
             views.setTextViewText(viewId, buildLabel(row))
             views.setViewVisibility(viewId, View.VISIBLE)
+            views.setInt(
+                boxViews[i],
+                "setBackgroundResource",
+                if (row.done) DONE_BOX_DRAWABLES.getValue(accentKey)
+                else OPEN_BOX_DRAWABLES.getValue(accentKey)
+            )
+            views.setViewVisibility(boxViews[i], View.VISIBLE)
+            views.setViewVisibility(checkViews[i], if (row.done) View.VISIBLE else View.GONE)
             val textColor = when {
                 row.done -> doneColor       // muted, theme-appropriate
                 accent != null -> accent    // incomplete task -> accent
@@ -152,6 +199,8 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
         for (i in rows.size until maxRows) {
             views.setTextViewText(rowViews[i], "")
             views.setViewVisibility(rowViews[i], View.GONE)
+            views.setViewVisibility(boxViews[i], View.GONE)
+            views.setViewVisibility(checkViews[i], View.GONE)
         }
 
         appWidgetManager.updateAppWidget(appWidgetId, views)
@@ -173,10 +222,9 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
         }
     }
 
-    /** Row label shared by every size variant: the "✓  " prefix plus the
-     *  muted done color encode completion. */
+    /** Row label shared by every size variant. Completion is shown by the
+     *  checkbox graphic and the muted done color, not the text. */
     private fun buildLabel(row: TaskRow): String = buildString {
-        if (row.done) append("✓  ")
         append(row.title)
         if (row.time.isNotEmpty()) append("   ").append(row.time)
     }
@@ -233,5 +281,15 @@ class LoopweekWidgetProvider : HomeWidgetProvider() {
         val tokens = raw.split("|").mapNotNull { it.toIntOrNull() }
         if (tokens.size != 3) return null
         return Color.rgb(tokens[0], tokens[1], tokens[2])
+    }
+
+    /** Maps the parsed accent to a checkbox drawable key. Exact int match on
+     *  the encoded accent ints in lib/data/services/home_widget_service.dart;
+     *  unknown or missing accents fall back to orange. */
+    private fun accentKeyOf(accent: Int?): String = when (accent) {
+        0xFFE91E63.toInt() -> "pink"
+        0xFF1E88E5.toInt() -> "blue"
+        0xFF43A047.toInt() -> "green"
+        else -> "orange" // 0xFFF4511E, unknown, or missing
     }
 }
