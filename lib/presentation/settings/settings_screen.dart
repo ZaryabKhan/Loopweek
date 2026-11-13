@@ -10,9 +10,11 @@ import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/data/services/backup_service.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
 import 'package:loopweek/domain/models/first_day_of_week.dart';
+import 'package:loopweek/domain/models/task.dart';
 import 'package:loopweek/presentation/providers.dart';
 import 'package:loopweek/presentation/settings/donation_sheet.dart';
 import 'package:loopweek/presentation/settings/dummy_data.dart';
+import 'package:loopweek/presentation/settings/template_sheets.dart';
 import 'package:loopweek/presentation/week/week_providers.dart';
 import 'package:loopweek/presentation/week/week_view.dart';
 import 'package:loopweek/presentation/widgets/accent_segmented.dart';
@@ -229,6 +231,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               subtitle: 'Restore from a Loopweek backup file',
               onTap: () => _runBackup((backup) => backup.importBackup()),
             ),
+            const SizedBox(height: 24),
+            _LabelRow('Templates'),
+            const SizedBox(height: 8),
+            const _TemplatesSection(),
             if (donationMode == DonationMode.iap) ...[
               _IapDonationTile(),
             ] else
@@ -783,6 +789,99 @@ class _BackupRow extends StatelessWidget {
         ),
       ),
       onTap: onTap,
+    );
+  }
+}
+
+/// The Templates section rows: snapshot the shown week into a named template
+/// and seed a saved week back onto the shown one. The save row reads the
+/// shown week's tasks live, so its subtitle doubles as the save affordance's
+/// state ("This week is empty" disables it).
+class _TemplatesSection extends ConsumerWidget {
+  const _TemplatesSection();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final weekDates = ref.watch(weekDatesProvider);
+    final perDay = [
+      for (final date in weekDates)
+        ref.watch(tasksForDateProvider(date)).valueOrNull ?? const <Task>[],
+    ];
+    final totalTasks = perDay.fold<int>(0, (sum, tasks) => sum + tasks.length);
+    final daysWithTasks = perDay.where((tasks) => tasks.isNotEmpty).length;
+
+    return Column(
+      children: [
+        _TemplateRow(
+          icon: Icons.save_outlined,
+          title: 'Save this week as template',
+          subtitle: totalTasks == 0
+              ? 'This week is empty'
+              : '$totalTasks tasks across $daysWithTasks days',
+          enabled: totalTasks > 0,
+          onTap: () {
+            Haptics.light();
+            showSaveTemplateSheet(context, weekDates: weekDates);
+          },
+        ),
+        _TemplateRow(
+          icon: Icons.edit_calendar_outlined,
+          title: 'Apply a template',
+          subtitle: 'Seed a saved week onto this one',
+          enabled: true,
+          onTap: () {
+            Haptics.light();
+            showApplyTemplateSheet(context);
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// A Templates entry row. Same ListTile signature as [_BackupRow], plus an
+/// [enabled] flag so the save row can gray out on an empty week.
+class _TemplateRow extends StatelessWidget {
+  const _TemplateRow({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.enabled,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final bool enabled;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final onSurface = theme.colorScheme.onSurface;
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+      enabled: enabled,
+      leading: Icon(
+        icon,
+        color: enabled ? theme.colorScheme.primary : theme.disabledColor,
+      ),
+      title: Text(
+        title,
+        style: theme.textTheme.titleMedium?.copyWith(
+          color: enabled ? onSurface : theme.disabledColor,
+        ),
+      ),
+      subtitle: Text(
+        subtitle,
+        style: theme.textTheme.bodySmall?.copyWith(
+          color: enabled
+              ? onSurface.withValues(alpha: 0.6)
+              : theme.disabledColor,
+        ),
+      ),
+      onTap: enabled ? onTap : null,
     );
   }
 }

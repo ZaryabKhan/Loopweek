@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:loopweek/core/theme/app_theme.dart';
 import 'package:loopweek/data/database/database.dart';
 import 'package:loopweek/data/repositories/task_repository.dart';
+import 'package:loopweek/data/repositories/week_template_repository.dart';
 import 'package:loopweek/data/services/backup_service.dart';
 import 'package:loopweek/data/services/notification_service.dart';
 import 'package:loopweek/data/services/settings_service.dart';
@@ -24,6 +25,18 @@ final databaseProvider = Provider<LoopweekDatabase>(
 
 final taskRepositoryProvider = Provider<TaskRepository>(
   (ref) => TaskRepository(ref.watch(databaseProvider)),
+);
+
+final weekTemplateRepositoryProvider = Provider<WeekTemplateRepository>(
+  (ref) => WeekTemplateRepository(
+    ref.watch(databaseProvider),
+    ref.watch(taskRepositoryProvider),
+  ),
+);
+
+/// Live list of saved week templates, newest first. Feeds the picker sheet.
+final weekTemplatesProvider = StreamProvider<List<TemplateSummary>>(
+  (ref) => ref.watch(weekTemplateRepositoryProvider).watchTemplates(),
 );
 
 final notificationServiceProvider = Provider<NotificationService>(
