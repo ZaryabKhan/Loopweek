@@ -74,8 +74,7 @@ class BackupService {
     if (files.isEmpty) return 'Import cancelled.';
 
     try {
-      final bytes = await files.first.readBytes();
-      if (bytes == null) return 'Import failed: could not read the file.';
+      final bytes = await files.first.readAsBytes();
       final backup = _decode(bytes);
 
       final rows = <Task>[];
