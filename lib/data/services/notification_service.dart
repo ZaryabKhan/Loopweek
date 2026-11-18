@@ -130,7 +130,7 @@ class NotificationService {
       iOS: ios,
     );
     await _plugin.initialize(
-      settings,
+      settings: settings,
       onDidReceiveNotificationResponse: _onNotificationResponse,
       onDidReceiveBackgroundNotificationResponse: backgroundResponseHandler,
     );
@@ -307,7 +307,7 @@ class NotificationService {
     // Stop any previous reminder for this task first. Wrap in try/catch so a
     // stale/corrupt plugin cache can never break the caller's save flow.
     try {
-      await _plugin.cancel(id);
+      await _plugin.cancel(id: id);
     } catch (e) {
       debugPrint('Could not cancel old reminder for task $taskId: $e');
     }
@@ -377,7 +377,7 @@ class NotificationService {
   Future<void> cancelTaskReminder(String taskId) async {
     await ensureInitialized();
     try {
-      await _plugin.cancel(notificationIdFor(taskId));
+      await _plugin.cancel(id: notificationIdFor(taskId));
     } catch (e) {
       debugPrint('Could not cancel reminder for task $taskId: $e');
     }
@@ -432,7 +432,7 @@ class NotificationService {
     for (final pendingId in pendingIds) {
       if (desired.containsKey(pendingId)) continue;
       try {
-        await _plugin.cancel(pendingId);
+        await _plugin.cancel(id: pendingId);
       } catch (e) {
         debugPrint('Could not cancel orphaned reminder $pendingId: $e');
       }
@@ -480,16 +480,17 @@ class NotificationService {
     NotificationDetails details,
     AndroidScheduleMode mode,
   ) {
+    // Plugin v20 converted zonedSchedule's positional parameters to named
+    // ones; the iOS-only uiLocalNotificationDateInterpretation parameter was
+    // removed in v19.
     return _plugin.zonedSchedule(
-      id,
-      title,
-      body,
-      _toTz(scheduled),
-      details,
+      id: id,
+      title: title,
+      body: body,
+      scheduledDate: _toTz(scheduled),
+      notificationDetails: details,
       payload: payload.encode(),
       androidScheduleMode: mode,
-      uiLocalNotificationDateInterpretation:
-          UILocalNotificationDateInterpretation.absoluteTime,
     );
   }
 
