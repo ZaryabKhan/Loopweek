@@ -13,6 +13,12 @@
 # integration test compiles and runs the same source with the harness.
 name: QA device matrix
 
+# One matrix run at a time: a new push cancels the stale run instead of
+# doubling 4 emulator jobs.
+concurrency:
+  group: qa-device-matrix
+  cancel-in-progress: true
+
 on:
   push:
     branches: ["qa/exact-alarm-retest"]
@@ -71,7 +77,7 @@ jobs:
         uses: subosito/flutter-action@v2
         with:
           channel: stable
-          flutter-Version: 3.47.0
+          flutter-version: 3.47.0
           cache: true
 
       - name: Get dependencies
