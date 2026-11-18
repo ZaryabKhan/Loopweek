@@ -2,8 +2,12 @@
     <!-- Optional task reminders (no permission requested at startup; only
          requested the first time the user switches on a reminder). -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED"/>
+    <!-- Exact-alarm policy (Play restricts USE_EXACT_ALARM to alarm/calendar
+         apps, so this app must not declare it): SCHEDULE_EXACT_ALARM is the
+         user-grantable permission. On Android 14+ it is denied by default;
+         the scheduler checks canScheduleExactNotifications() and falls back
+         to inexact alarms rather than dropping the reminder. -->
     <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM"/>
-    <uses-permission android:name="android.permission.USE_EXACT_ALARM"/>
     <uses-permission android:name="android.permission.VIBRATE"/>
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
     <application
