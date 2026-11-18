@@ -196,9 +196,11 @@ into a one-line `UPDATE tasks SET is_completed = (1 - is_completed) WHERE id = ?
 
 ## 🔒 Privacy
 
-Loopweek stores everything on the device. There is no network code in the
-release build, no analytics, no telemetry, and no crash reporting that sends
-data anywhere. Notification permission is requested only when you opt into a
+Loopweek stores everything on the device, and it never phones home: no
+analytics, no telemetry, no tracking, and no crash reporting that sends
+data anywhere. The only network activity happens when you explicitly
+trigger it — opening a link in your browser or using the optional Google
+Play tip. Notification permission is requested only when you opt into a
 reminder; nothing else asks for any permission.
 
 ## 🤝 Contributing
