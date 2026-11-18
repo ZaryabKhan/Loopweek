@@ -1,0 +1,217 @@
+# QA exact-alarm device matrix for Loopweek (acc verify).
+#
+# Verifies PR7 (flutter_local_notifications 17 -> 22) reminder behavior on
+# Android emulators hosted here in CI — no local builds, no local emulators:
+#
+#   - API 31 (Android 12), exact granted  -> fires on time (exact)
+#   - API 33 (Android 13), exact granted  -> fires on time + survives reboot
+#   - API 34 (Android 14), exact granted  -> fires on time (user-granted case)
+#   - API 34 (Android 14), exact denied   -> graceful inexact fallback, still fires
+#
+# Every job also installs the CI-built artifact APK (latest successful Build
+# run on the PR branch) and launches it as an install/launch smoke before the
+# integration test compiles and runs the same source with the harness.
+name: QA device matrix
+
+on:
+  push:
+    branches: ["qa/exact-alarm-retest"]
+  workflow_dispatch:
+    inputs:
+      pr_branch:
+        description: "Source branch to test (defaults to the PR branch)"
+        required: false
+        default: "chore/flutter-local-notifications-22"
+      artifact_run_branch:
+        description: "Branch whose latest successful Build run provides the APK artifact"
+        required: false
+        default: "chore/flutter-local-notifications-22"
+
+jobs:
+  exact-alarm:
+    name: API ${{ matrix.api }} (${{ matrix.scenario }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 31
+            scenario: "Android 12, exact granted"
+            exact: allow
+            reboot: false
+          - api: 33
+            scenario: "Android 13, exact granted + reboot"
+            exact: allow
+            reboot: true
+          - api: 34
+            scenario: "Android 14, exact granted"
+            exact: allow
+            reboot: false
+          - api: 34
+            scenario: "Android 14, exact denied (fallback)"
+            exact: deny
+            reboot: false
+    env:
+      PKG: com.appcodecraft.loopweek
+      PR_BRANCH: ${{ github.event.inputs.pr_branch || 'chore/flutter-local-notifications-22' }}
+      RUN_BRANCH: ${{ github.event.inputs.artifact_run_branch || 'chore/flutter-local-notifications-22' }}
+
+    steps:
+      - name: Checkout QA branch
+        uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-Version: 3.47.0
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate Drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Download latest CI-built APK artifact
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RUN_ID=$(gh run list -R "${{ github.repository }}" \
+            --workflow build.yml --branch "$RUN_BRANCH" \
+            --status success -L 1 --json databaseId -q '.[0].databaseId')
+          echo "Using artifact from Build run $RUN_ID (branch $RUN_BRANCH)"
+          ART_ID=$(gh api -R "${{ github.repository }}" \
+            "/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
+            -q '.artifacts[0].id')
+          mkdir -p artifact
+          gh api -R "${{ github.repository }}" \
+            "/repos/${{ github.repository }}/actions/artifacts/$ART_ID/zip" > artifact/apk.zip
+          unzip -o artifact/apk.zip -d artifact
+          ls -la artifact
+
+      - name: Run emulator + exact-alarm retest
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          arch: x86_64
+          target: google_apis
+          profile: pixel_5
+          heap-size: 512M
+          disable-animations: true
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          script: |
+            set -e
+            adb logcat -G 16M
+            adb logcat -c
+
+            echo "::group::Install CI-built artifact APK (install/launch smoke)"
+            adb install -r -t artifact/app-github-debug.apk
+            adb shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1
+            sleep 10
+            PID=$(adb shell pidof "$PKG" | tr -d '[:space:]')
+            if [ -z "$PID" ]; then
+              echo "ARTIFACT_SMOKE_FAILED: process not running after launch"
+              exit 1
+            fi
+            echo "ARTIFACT_SMOKE_OK pid=$PID"
+            adb shell am force-stop "$PKG"
+            echo "::endgroup::"
+
+            echo "::group::Permissions: POST_NOTIFICATIONS grant, SCHEDULE_EXACT_ALARM=${{ matrix.exact }}"
+            adb shell pm grant "$PKG" android.permission.POST_NOTIFICATIONS || true
+            adb shell appops set "$PKG" SCHEDULE_EXACT_ALARM ${{ matrix.exact }}
+            adb shell appops get "$PKG" SCHEDULE_EXACT_ALARM
+            echo "::endgroup::"
+
+            echo "::group::Run integration retest (builds the app from this commit)"
+            flutter test integration_test/exact_alarm_retest_test.dart --flavor github
+            echo "::endgroup::"
+
+            # Collect QATEST markers and drain logcat so the fire check reads
+            # only post-test entries.
+            adb logcat -d -v epoch > /tmp/pre.log
+            FIRE=$(grep -o 'fireEpochExact=[0-9]*' /tmp/pre.log | head -1 | cut -d= -f2)
+            FIRE_REBOOT=$(grep -o 'fireEpochReboot=[0-9]*' /tmp/pre.log | head -1 | cut -d= -f2)
+            if [ -z "$FIRE" ] || [ -z "$FIRE_REBOOT" ]; then
+              echo "HARNESS_FAILED: QATEST markers missing — integration test did not complete"
+              tail -100 /tmp/pre.log
+              exit 1
+            fi
+            echo "Fire times: exact=$FIRE reboot=$FIRE_REBOOT"
+
+            echo "::group::Reboot-restore test (API ${{ matrix.api }})"
+            if [ "${{ matrix.reboot }}" = "true" ]; then
+              # Reboot BEFORE the reboot-restore alarm fires; the boot receiver
+              # must re-register it or the reminder is lost (the user scenario).
+              adb reboot
+              adb wait-for-device
+              until [ "$(adb shell getprop sys.boot_completed 2>/dev/null | tr -d '[:space:]')" = "1" ]; do
+                sleep 5
+              done
+              echo "Boot completed; waiting for boot receiver + alarm"
+              sleep 25
+            fi
+            echo "::endgroup::"
+
+            echo "::group::Fire check: wait past fire time, assert notification posted"
+            # Exact alarms fire on the minute (+45s grace); inexact windows run
+            # longer (+6 min grace).
+            if [ "${{ matrix.exact }}" = "allow" ]; then GRACE=45; else GRACE=360; fi
+            NOW=$(date +%s)
+            WAIT=$(( FIRE + GRACE - NOW + 15 ))
+            if [ "$WAIT" -gt 0 ]; then sleep "$WAIT"; fi
+
+            adb logcat -d -v epoch > /tmp/post.log
+            if adb shell dumpsys notification --noredact | grep -q "QA exact alarm"; then
+              echo "FIRE_OK: 'QA exact alarm' notification is posted"
+            else
+              echo "FIRE_FAILED: notification not found in dumpsys"
+            fi
+            # Latency evidence: NotificationManagerService enqueue epoch vs scheduled epoch.
+            POSTED=$(grep -E 'NotificationService' /tmp/post.log \
+              | grep -i "$PKG" | grep -oE '^ *[0-9]+\.[0-9]+' | head -1 \
+              | tr -d ' .')
+            if [ -n "$POSTED" ]; then
+              DELTA=$(( POSTED / 1000 - FIRE ))
+              echo "FIRE_LATENCY seconds=$DELTA"
+            else
+              echo "FIRE_LATENCY unparsed (presence check above is authoritative)"
+            fi
+            if ! adb shell dumpsys notification --noredact | grep -q "QA exact alarm"; then
+              exit 1
+            fi
+            echo "::endgroup::"
+
+            echo "::group::Post-reboot fire check"
+            if [ "${{ matrix.reboot }}" = "true" ]; then
+              NOW=$(date +%s)
+              WAIT=$(( FIRE_REBOOT + 90 - NOW ))
+              if [ "$WAIT" -gt 0 ]; then sleep "$WAIT"; fi
+              if adb shell dumpsys notification --noredact | grep -q "QA reboot restore"; then
+                echo "REBOOT_RESTORE_OK: reminder survived reboot and fired"
+              else
+                echo "REBOOT_RESTORE_FAILED: post-boot reminder missing"
+                adb shell dumpsys alarm | grep -A3 "$PKG" || true
+                exit 1
+              fi
+            fi
+            echo "::endgroup::"
+            echo "QA_DEVICE_MATRIX_JOB_PASSED api=${{ matrix.api }} scenario=${{ matrix.scenario }}"
+
+      - name: Upload logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: qa-logs-api-${{ matrix.api }}-${{ matrix.exact }}${{ matrix.reboot == true && '-reboot' || '' }}
+          path: |
+            /tmp/pre.log
+            /tmp/post.log
+          if-no-files-found: ignore

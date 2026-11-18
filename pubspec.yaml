@@ -1,3 +1,4 @@
+successfully downloaded text file (SHA: 11910241f6b1d7d0c24b02039e02c53c535c094a)
 name: loopweek
 description: "Loopweek — a free, open-source weekly to-do app for Android. One screen, seven days, nothing else."
 publish_to: "none"
@@ -50,6 +51,10 @@ dependencies:
 
 dev_dependencies:
   flutter_test:
+    sdk: flutter
+
+  # QA device-matrix harness (integration_test/), run by qa-device-matrix.yml.
+  integration_test:
     sdk: flutter
   flutter_lints: ^6.0.0
 
