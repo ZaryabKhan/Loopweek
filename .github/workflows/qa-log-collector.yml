@@ -1,0 +1,64 @@
+# QA log collector (acc verify).
+#
+# Job logs are behind GitHub's auth wall, so this workflow rides along on every
+# push to the QA branch: it waits for the QA device matrix run of the SAME
+# commit to finish, downloads that run's logs with the in-repo GITHUB_TOKEN,
+# and publishes them to the separate "qa/logs" branch (raw-readable, and it
+# does not re-trigger anything — the matrix only triggers on the QA branch).
+name: QA log collector
+
+on:
+  push:
+    branches: ["qa/exact-alarm-retest"]
+  workflow_dispatch:
+
+jobs:
+  collect:
+    name: Collect matrix logs
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - name: Wait for matrix run of this commit, download its logs, publish to qa/logs
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euxo pipefail
+          SHA="${{ github.sha }}"
+          API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          AUTH="Authorization: Bearer $GH_TOKEN"
+
+          RUN_ID=""
+          for i in $(seq 1 75); do
+            RESP=$(curl -fsSL -H "$AUTH" -H "Accept: application/vnd.github+json" \
+              "$API/actions/workflows/qa-device-matrix.yml/runs?head_sha=$SHA&per_page=1")
+            RUN_ID=$(echo "$RESP" | jq -r '.workflow_runs[0].id // empty')
+            STATUS=$(echo "$RESP" | jq -r '.workflow_runs[0].status // empty')
+            echo "attempt=$i run=$RUN_ID status=$STATUS"
+            if [ -n "$RUN_ID" ] && [ "$STATUS" = "completed" ]; then break; fi
+            sleep 60
+          done
+          if [ -z "$RUN_ID" ]; then
+            echo "NO_MATRIX_RUN: nothing to collect"
+            exit 0
+          fi
+
+          mkdir -p /tmp/collected
+          gh api "$API/actions/runs/$RUN_ID/logs" > /tmp/collected/logs.zip
+          unzip -o /tmp/collected/logs.zip -d /tmp/collected/run-$RUN_ID
+
+          rm -rf /tmp/logrepo
+          git clone --depth 1 "https://x-access-token:${GH_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" /tmp/logrepo
+          cd /tmp/logrepo
+          git config user.name "Zaryab K."
+          git config user.email "7141743+ZaryabKhan@users.noreply.github.com"
+          mkdir -p qa-logs
+          rm -rf qa-logs/*
+          cp -r /tmp/collected/run-"$RUN_ID" qa-logs/
+          git add -A
+          if git diff --cached --quiet; then
+            echo "NO_LOG_CHANGES"
+            exit 0
+          fi
+          git commit -m "qa: publish device matrix logs for run $RUN_ID"
+          git push origin HEAD:qa/logs
+          echo "COLLECTED run=$RUN_ID"
