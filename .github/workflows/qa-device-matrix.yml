@@ -90,18 +90,23 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          RUN_ID=$(gh run list -R "${{ github.repository }}" \
-            --workflow build.yml --branch "$RUN_BRANCH" \
-            --status success -L 1 --json databaseId -q '.[0].databaseId')
+          set -euxo pipefail
+          API="https://api.github.com/repos/${GITHUB_REPOSITORY}"
+          AUTH="Authorization: Bearer $GH_TOKEN"
+          RUN_ID=$(curl -fsSL -H "$AUTH" -H "Accept: application/vnd.github+json" \
+            "$API/actions/workflows/build.yml/runs?branch=$RUN_BRANCH&status=success&per_page=1" \
+            | jq -er '.workflow_runs[0].id')
           echo "Using artifact from Build run $RUN_ID (branch $RUN_BRANCH)"
-          ART_ID=$(gh api -R "${{ github.repository }}" \
-            "/repos/${{ github.repository }}/actions/runs/$RUN_ID/artifacts" \
-            -q '.artifacts[0].id')
+          ART_ID=$(curl -fsSL -H "$AUTH" -H "Accept: application/vnd.github+json" \
+            "$API/actions/runs/$RUN_ID/artifacts" | jq -er '.artifacts[0].id')
+          echo "ART_ID=$ART_ID"
           mkdir -p artifact
-          gh api -R "${{ github.repository }}" \
-            "/repos/${{ github.repository }}/actions/artifacts/$ART_ID/zip" > artifact/apk.zip
+          CODE=$(curl -fsSL -w '%{http_code}' -o artifact/apk.zip -H "$AUTH" \
+            "$API/actions/artifacts/$ART_ID/zip")
+          echo "download http=$CODE"
           unzip -o artifact/apk.zip -d artifact
           ls -la artifact
+          test -f artifact/app-github-debug.apk
 
       - name: Run emulator + exact-alarm retest
         uses: reactivecircus/android-emulator-runner@v2
