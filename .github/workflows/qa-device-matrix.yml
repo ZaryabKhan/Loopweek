@@ -143,8 +143,19 @@ jobs:
             echo "::endgroup::"
 
             echo "::group::Run integration retest (builds the app from this commit)"
-            flutter test integration_test/exact_alarm_retest_test.dart --flavor github
+            set +e
+            flutter test integration_test/exact_alarm_retest_test.dart --flavor github > /tmp/ft.log 2>&1
+            FT=$?
+            set -e
+            cat /tmp/ft.log
             echo "::endgroup::"
+            if [ "$FT" -ne 0 ]; then
+              echo "FLUTTER_TEST_FAILED code=$FT"
+              adb shell dumpsys alarm 2>&1 | grep -B2 -A6 "$PKG" || true
+              adb shell dumpsys notification --noredact 2>&1 | grep -B2 -A6 "$PKG" || true
+              adb logcat -d -v epoch 2>&1 | grep -E "QATEST|flutter" | tail -80 || true
+              exit 1
+            fi
 
             # Collect QATEST markers and drain logcat so the fire check reads
             # only post-test entries.
@@ -180,6 +191,7 @@ jobs:
             WAIT=$(( FIRE + GRACE - NOW + 15 ))
             if [ "$WAIT" -gt 0 ]; then sleep "$WAIT"; fi
 
+            adb shell dumpsys alarm > /tmp/alarm.log 2>&1 || true
             adb logcat -d -v epoch > /tmp/post.log
             if adb shell dumpsys notification --noredact | grep -q "QA exact alarm"; then
               echo "FIRE_OK: 'QA exact alarm' notification is posted"
@@ -225,4 +237,6 @@ jobs:
           path: |
             /tmp/pre.log
             /tmp/post.log
+            /tmp/alarm.log
+            /tmp/ft.log
           if-no-files-found: ignore
