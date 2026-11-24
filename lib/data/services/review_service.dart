@@ -1,8 +1,7 @@
-import 'dart:async';
-
 import 'package:flutter/foundation.dart';
 import 'package:in_app_review/in_app_review.dart';
 
+import 'package:loopweek/core/donation_mode.dart';
 import 'package:loopweek/data/services/settings_service.dart';
 
 /// Launches the Google Play review dialog. A separate interface so unit
@@ -30,30 +29,31 @@ class PlayReviewLauncher implements ReviewLauncher {
   Future<void> requestReview() => InAppReview.instance.requestReview();
 
   @override
-  Future<void> openStoreListing() =>
-      InAppReview.instance.openStoreListing();
+  Future<void> openStoreListing() => InAppReview.instance.openStoreListing();
 }
 
 /// Decides when to ask for a Play rating, and asks.
 ///
 /// Fires only at earned moments — the caller decides what counts (Loopweek:
-/// completing the third task in a session, dismissing the fresh-week ritual
-/// banner). All other gating lives here:
+/// dismissing the fresh-week ritual banner after engaging with it). All
+/// other gating lives here:
 ///
-/// - Playstore flavor only: [donationMode] — the github flavor never carries
-///   an active review flow, mirroring the donation-mode split.
-/// - 30-day cooldown after ANY attempt (dialog shown or declined — the API
-///   exposes no outcome, so every attempt costs the full cooldown),
-///   persisted in SharedPreferences via [SettingsService].
-/// - Once per session, so a burst of task check-offs can only ever reach
-///   the dialog once before the cooldown takes over.
+/// - Playstore flavor only: the github flavor (DONATION_MODE=polar, the
+///   default) never reaches the review flow at runtime, mirroring the
+///   donation split in `donation_mode.dart`.
+/// - 30-day cooldown after ANY attempt (the API exposes no dialog outcome,
+///   so a decline costs the same cooldown as a rating), persisted in
+///   SharedPreferences via [SettingsService] — survives reinstalls of
+///   nothing, but survives app restarts, which is what the quota needs.
+/// - Once per session on top, so a burst of earned moments in one sitting
+///   can only ever reach the dialog once.
 ///
 /// Data-layer service per the app architecture: no BuildContext, no UI.
-/// Every call is fire-and-forget safe — [maybeAskForReview] never throws
-/// (platform-channel failures are logged and swallowed), so triggering it
-/// right after a task completion can never surface an error to the user or
-/// block the toggle's await chain (ANR lens: nothing on the platform
-/// channel sits under a UI gesture's critical path).
+/// Every platform-channel call is fire-and-forget safe — [maybeAskForReview]
+/// never throws (failures are logged and swallowed), so triggering it right
+/// after a task completion can never surface an error or block the toggle's
+/// await chain (ANR lens: nothing platform-channel sits under a UI
+/// gesture's critical path).
 class ReviewService {
   ReviewService({
     required SettingsService settings,
@@ -67,20 +67,17 @@ class ReviewService {
   final ReviewLauncher _launcher;
   final DateTime Function() _now;
 
-  /// Quota guard mirror: Google throttles requestReview() unpredictably and
-  /// silently, so the app enforces its own visible rule instead.
+  /// Google throttles requestReview() unpredictably and silently; the app
+  /// enforces its own visible rule instead of retrying into the quota.
   static const _cooldown = Duration(days: 30);
 
-  /// Set on the first earned moment that passes all gates this session.
   bool _askedThisSession = false;
 
-  /// True when the user can currently be asked: earned moments should call
-  /// [maybeAskForReview] and ignore the answer; this getter exists for the
-  /// settings row, which needs a stable target at any time.
+  /// True until this session has fired one earned-moment prompt.
   bool get canAskThisSession => !_askedThisSession;
 
-  /// Evaluated at an earned moment. Returns true if the review dialog was
-  /// actually requested (all gates passed); callers may ignore it.
+  /// Evaluated at an earned moment. Returns true when the review dialog was
+  /// actually requested (all gates passed); callers may ignore the result.
   Future<bool> maybeAskForReview() async {
     if (donationMode != DonationMode.iap) return false;
     if (_askedThisSession) return false;
@@ -91,37 +88,37 @@ class ReviewService {
     }
     try {
       if (!await _launcher.isAvailable()) return false;
-      // Mark BEFORE awaiting the dialog: requestReview() resolves when the
-      // dialog closes (or is silently skipped by Play), and a decline or a
-      // process death mid-dialog must still arm the cooldown.
+      // Arm the cooldown BEFORE awaiting the dialog: requestReview()
+      // resolves when the dialog closes (or is silently skipped by Play),
+      // and a decline or process death mid-dialog must still count as an
+      // attempt.
       _askedThisSession = true;
       await _settings.setReviewLastAttemptMs(now);
       await _launcher.requestReview();
       return true;
     } catch (e) {
-      // Play Review is unavailable on some devices/F-Droid-style setups or
-      // fails transiently. Never propagate — the earned moment just ends.
+      // Unavailable on some devices/storeless builds, or a transient
+      // failure. Never propagate — the earned moment just ends quietly.
       debugPrint('Review flow failed: $e');
       return false;
     }
   }
 
-  /// Settings row: user explicitly asked for the rating screen. Bypasses the
-  /// earned-moment gates (it IS the user's decision) but still records the
-  /// attempt so the automatic prompt stays on the same 30-day rhythm.
+  /// Settings row: the user explicitly asked for the rating screen.
+  /// Bypasses the earned-moment gates (it IS the user's decision) but still
+  /// records the attempt so the automatic prompt stays on the same 30-day
+  /// rhythm. Falls back to the plain store listing when the dialog is
+  /// unavailable or fails — the listing can always be rated.
   Future<void> openRatingScreen() async {
     try {
       if (await _launcher.isAvailable()) {
-        await _settings.setReviewLastAttemptMs(
-          _now().millisecondsSinceEpoch,
-      );
+        await _settings.setReviewLastAttemptMs(_now().millisecondsSinceEpoch);
         await _launcher.requestReview();
       } else {
         await _launcher.openStoreListing();
       }
     } catch (e) {
       debugPrint('Rating screen failed: $e');
-      // Last resort: the plain store listing still lets them rate.
       try {
         await _launcher.openStoreListing();
       } catch (e2) {
