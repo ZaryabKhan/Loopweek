@@ -311,6 +311,7 @@ class _Body extends ConsumerWidget {
     final asyncTasks = ref.watch(tasksForDateProvider(date));
     final repo = ref.watch(taskRepositoryProvider);
     final widgetSvc = ref.watch(homeWidgetServiceProvider);
+    final reviewSvc = ref.watch(reviewServiceProvider);
     final settings = ref.watch(settingsProvider);
     final accentTag = settings.colorTag;
     // While the count loads, assume a populated week so the orientation never
@@ -351,6 +352,12 @@ class _Body extends ConsumerWidget {
                       accent: accentTag,
                       themeMode: themeMode,
                     );
+                    // Foreground completions only: the gated review prompt
+                    // may fire here. Un-completing and the background paths
+                    // (widget checkbox, reminder actions) never prompt.
+                    if (!t.isCompleted) {
+                      await reviewSvc.onTaskCompleted();
+                    }
                   },
                   onTap: () async {
                     Haptics.light();

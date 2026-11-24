@@ -48,6 +48,12 @@ dependencies:
   # flavor never reaches this code at runtime.
   in_app_purchase: ^3.2.0
 
+  # Google Play in-app review — fires only after a completed task, gated.
+  # Like in_app_purchase, it is only reachable when Play services exist, so
+  # github-flavor builds no-op. Adds no Android permission: the dialog is
+  # rendered by the Play Store app over IPC.
+  in_app_review: ^2.0.10
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
