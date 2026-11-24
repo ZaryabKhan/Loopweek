@@ -9,6 +9,7 @@ import 'package:loopweek/data/repositories/task_repository.dart';
 import 'package:loopweek/data/repositories/week_template_repository.dart';
 import 'package:loopweek/data/services/backup_service.dart';
 import 'package:loopweek/data/services/notification_service.dart';
+import 'package:loopweek/data/services/review_service.dart';
 import 'package:loopweek/data/services/settings_service.dart';
 import 'package:loopweek/data/services/home_widget_service.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
@@ -43,6 +44,15 @@ final weekTemplatesProvider = StreamProvider<List<TemplateSummary>>(
 final notificationServiceProvider = Provider<NotificationService>(
   (ref) => NotificationService(),
 );
+
+/// Play in-app review decision-maker (see [ReviewService]). The flavor gate
+/// is compile-time inside the service: on github builds every earned-moment
+/// call is a no-op, so trigger sites stay flavor-clean. Resolves once prefs
+/// are ready; read `.future` inside event handlers, never during build.
+final reviewServiceProvider = FutureProvider<ReviewService>((ref) async {
+  final sp = await ref.watch(sharedPreferencesProvider.future);
+  return ReviewService(settings: SettingsService(sp));
+});
 
 /// One-shot startup reconciliation of scheduled reminders against the
 /// database. Watched by the reminder bootstrapper in `main.dart`, so it runs

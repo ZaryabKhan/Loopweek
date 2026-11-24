@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:intl/intl.dart';
@@ -343,14 +345,28 @@ class _Body extends ConsumerWidget {
                   onToggle: () async {
                     Haptics.light();
                     final themeMode = settings.themeMode;
-                    await repo.setCompleted(
-                      id: t.id,
-                      completed: !t.isCompleted,
-                    );
+                    final completing = !t.isCompleted;
+                    await repo.setCompleted(id: t.id, completed: completing);
                     await widgetSvc.pushTodaySnapshot(
                       accent: accentTag,
                       themeMode: themeMode,
                     );
+                    // Earned moment: a task was just completed. Fire-and-
+                    // forget — the review dialog must never delay or break
+                    // the toggle's UI work, and ReviewService swallows its
+                    // own errors. All remaining gates (playstore flavor,
+                    // 30-day cooldown, once-per-session) live in the
+                    // service; unchecking a task never counts as earned.
+                    if (completing) {
+                      unawaited(
+                        ref
+                            .read(reviewServiceProvider.future)
+                            .then(
+                              (review) => review.maybeAskForReview(),
+                            )
+                            .catchError((Object _) => false),
+                      );
+                    }
                   },
                   onTap: () async {
                     Haptics.light();
