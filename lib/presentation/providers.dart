@@ -9,6 +9,7 @@ import 'package:loopweek/data/repositories/task_repository.dart';
 import 'package:loopweek/data/repositories/week_template_repository.dart';
 import 'package:loopweek/data/services/backup_service.dart';
 import 'package:loopweek/data/services/notification_service.dart';
+import 'package:loopweek/data/services/review_service.dart';
 import 'package:loopweek/data/services/settings_service.dart';
 import 'package:loopweek/data/services/home_widget_service.dart';
 import 'package:loopweek/domain/models/color_tag.dart';
@@ -79,6 +80,13 @@ final reminderSyncProvider = FutureProvider<void>((ref) async {
 
 final homeWidgetServiceProvider = Provider<HomeWidgetService>(
   (ref) => HomeWidgetService(ref.watch(taskRepositoryProvider)),
+);
+
+/// Best-effort Google Play review prompt, gated by [ReviewService]. It takes
+/// the prefs future directly so callers can watch this provider
+/// synchronously; the future is resolved long before any completion.
+final reviewServiceProvider = Provider<ReviewService>(
+  (ref) => ReviewService(ref.watch(sharedPreferencesProvider.future)),
 );
 
 /// SharedPreferences arrive via [sharedPreferencesProvider], so — like the
