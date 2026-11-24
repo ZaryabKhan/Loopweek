@@ -355,14 +355,16 @@ class _Body extends ConsumerWidget {
                     // forget — the review dialog must never delay or break
                     // the toggle's UI work, and ReviewService swallows its
                     // own errors. All remaining gates (playstore flavor,
-                    // 30-day cooldown, once-per-session) live in the
-                    // service; unchecking a task never counts as earned.
+                    // ≥3 lifetime completions, 30-day cooldown, once per
+                    // session) live in the service; unchecking a task never
+                    // counts as earned.
                     if (completing) {
                       unawaited(
                         ref
                             .read(reviewServiceProvider.future)
                             .then(
-                              (review) => review.maybeAskForReview(),
+                              (review) =>
+                                  review.recordCompletionAndMaybeAsk(),
                             )
                             .catchError((Object _) => false),
                       );

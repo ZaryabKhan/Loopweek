@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -103,6 +105,15 @@ class _RitualBannerState extends ConsumerState<RitualBanner> {
     if (sp == null) return;
     await SettingsService(sp).setRitualBannerDismissed(weekIso);
     if (mounted) setState(() => _dismissedWeekIso = weekIso);
+    // Earned moment: the user engaged with the fresh-week summary and
+    // closed it. Fire-and-forget — same contract as the week-view
+    // toggle; ReviewService owns every gate and never throws.
+    unawaited(
+      ref
+          .read(reviewServiceProvider.future)
+          .then((review) => review.maybeAskForReview())
+          .catchError((Object _) => false),
+    );
   }
 
   @override
