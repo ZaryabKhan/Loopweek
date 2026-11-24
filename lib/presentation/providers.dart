@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'package:loopweek/core/donation_mode.dart';
 import 'package:loopweek/core/theme/accent_colors.dart';
 import 'package:loopweek/core/theme/app_theme.dart';
 import 'package:loopweek/data/database/database.dart';
@@ -46,12 +47,17 @@ final notificationServiceProvider = Provider<NotificationService>(
 );
 
 /// Play in-app review decision-maker (see [ReviewService]). The flavor gate
-/// is compile-time inside the service: on github builds every earned-moment
-/// call is a no-op, so trigger sites stay flavor-clean. Resolves once prefs
-/// are ready; read `.future` inside event handlers, never during build.
+/// is injected at construction from the compile-time DONATION_MODE constant
+/// (the same expression the settings screen uses for its IAP rows), so on
+/// github builds every earned-moment call is a no-op and trigger sites stay
+/// flavor-clean. Resolves once prefs are ready; read `.future` inside event
+/// handlers, never during build.
 final reviewServiceProvider = FutureProvider<ReviewService>((ref) async {
   final sp = await ref.watch(sharedPreferencesProvider.future);
-  return ReviewService(settings: SettingsService(sp));
+  return ReviewService(
+    iapBuild: donationMode == DonationMode.iap,
+    settings: SettingsService(sp),
+  );
 });
 
 /// One-shot startup reconciliation of scheduled reminders against the

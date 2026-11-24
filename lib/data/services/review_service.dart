@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:in_app_review/in_app_review.dart';
 
-import 'package:loopweek/core/donation_mode.dart';
 import 'package:loopweek/data/services/settings_service.dart';
 
 /// Launches the Google Play review dialog. A separate interface so unit
@@ -34,19 +33,31 @@ class PlayReviewLauncher implements ReviewLauncher {
 
 /// Decides when to ask for a Play rating, and asks.
 ///
-/// Fires only at earned moments — the caller decides what counts (Loopweek:
-/// dismissing the fresh-week ritual banner after engaging with it). All
-/// other gating lives here:
+/// Fires only at earned moments:
 ///
-/// - Playstore flavor only: the github flavor (DONATION_MODE=polar, the
-///   default) never reaches the review flow at runtime, mirroring the
-///   donation split in `donation_mode.dart`.
-/// - 30-day cooldown after ANY attempt (the API exposes no dialog outcome,
-///   so a decline costs the same cooldown as a rating), persisted in
-///   SharedPreferences via [SettingsService] — survives reinstalls of
-///   nothing, but survives app restarts, which is what the quota needs.
-/// - Once per session on top, so a burst of earned moments in one sitting
-///   can only ever reach the dialog once.
+/// - Completing a task in the week view, via [recordCompletionAndMaybeAsk]
+///   — but only once at least [_minCompletionsForAsk] tasks have been
+///   completed in the app's whole history (persisted counter), so the ask
+///   lands on an established habit, not a first tickle.
+/// - Dismissing the fresh-week ritual banner after engaging with it
+///   ([maybeAskForReview] directly).
+///
+/// Widget-checkbox and notification "Mark done" completions increment the
+/// same counter but never attempt the ask — requestReview() from a
+/// background isolate can silently no-op yet still burn Google's 30-day
+/// quota window.
+///
+/// All other gating lives here:
+///
+/// - Playstore flavor only: [iapBuild] is injected at construction from
+///   the compile-time DONATION_MODE constant, so the github flavor
+///   (polar, the default) never reaches the review flow at runtime.
+/// - 30-day cooldown after ANY attempt (the API exposes no dialog
+///   outcome, so a decline costs the same cooldown as a rating),
+///   persisted in SharedPreferences via [SettingsService] — survives app
+///   restarts, which is what the quota needs.
+/// - Once per session on top, so a burst of earned moments in one
+///   sitting can only ever reach the dialog once.
 ///
 /// Data-layer service per the app architecture: no BuildContext, no UI.
 /// Every platform-channel call is fire-and-forget safe — [maybeAskForReview]
@@ -56,13 +67,16 @@ class PlayReviewLauncher implements ReviewLauncher {
 /// gesture's critical path).
 class ReviewService {
   ReviewService({
+    required bool iapBuild,
     required SettingsService settings,
     ReviewLauncher? launcher,
     DateTime Function()? clock,
-  }) : _settings = settings,
+  }) : _iapBuild = iapBuild,
+       _settings = settings,
        _launcher = launcher ?? const PlayReviewLauncher(),
        _now = clock ?? DateTime.now;
 
+  final bool _iapBuild;
   final SettingsService _settings;
   final ReviewLauncher _launcher;
   final DateTime Function() _now;
@@ -71,16 +85,37 @@ class ReviewService {
   /// enforces its own visible rule instead of retrying into the quota.
   static const _cooldown = Duration(days: 30);
 
+  /// Minimum lifetime task completions before an earned moment may ask.
+  static const _minCompletionsForAsk = 3;
+
   bool _askedThisSession = false;
 
   /// True until this session has fired one earned-moment prompt.
   bool get canAskThisSession => !_askedThisSession;
 
+  /// Records one real completion (app toggle, widget checkbox, or
+  /// notification mark-done) and then evaluates the earned moment. The
+  /// counter is cumulative and persisted, so the gate survives process
+  /// death. Returns true when the dialog was actually requested.
+  Future<bool> recordCompletionAndMaybeAsk() async {
+    try {
+      await _settings.setReviewCompletedTasks(
+        _settings.reviewCompletedTasks + 1,
+      );
+    } catch (e) {
+      debugPrint('Review completion count failed: $e');
+    }
+    return maybeAskForReview();
+  }
+
   /// Evaluated at an earned moment. Returns true when the review dialog was
   /// actually requested (all gates passed); callers may ignore the result.
   Future<bool> maybeAskForReview() async {
-    if (donationMode != DonationMode.iap) return false;
+    if (!_iapBuild) return false;
     if (_askedThisSession) return false;
+    if (_settings.reviewCompletedTasks < _minCompletionsForAsk) {
+      return false;
+    }
     final last = _settings.reviewLastAttemptMs;
     final now = _now().millisecondsSinceEpoch;
     if (last != null && now - last < _cooldown.inMilliseconds) {

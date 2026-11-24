@@ -23,6 +23,7 @@ class SettingsService {
   static const _kRitualLastSeenWeekStart = 'ritual.lastSeenWeekStart';
   static const _kNotifLastDone = 'notif.lastDone';
   static const _kReviewLastAttemptMs = 'review.lastAttemptMs';
+  static const _kReviewCompletedTasks = 'review.completedTasks';
 
   ColorTag get colorTag => ColorTag.fromName(_prefs.getString(_kColorTag));
   Future<void> setColorTag(ColorTag tag) =>
@@ -109,4 +110,12 @@ class SettingsService {
   int? get reviewLastAttemptMs => _prefs.getInt(_kReviewLastAttemptMs);
   Future<void> setReviewLastAttemptMs(int ms) =>
       _prefs.setInt(_kReviewLastAttemptMs, ms);
+
+  /// Cumulative lifetime task completions behind the review prompt's
+  /// ≥3-completions gate. Incremented from every real completion path —
+  /// the week-view toggle, the home-widget checkbox, and the notification
+  /// "Mark done" action — so the gate survives process death and restarts.
+  int get reviewCompletedTasks => _prefs.getInt(_kReviewCompletedTasks) ?? 0;
+  Future<void> setReviewCompletedTasks(int count) =>
+      _prefs.setInt(_kReviewCompletedTasks, count);
 }
