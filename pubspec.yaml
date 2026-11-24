@@ -43,6 +43,10 @@ dependencies:
   printing: ^5.14.3
   pdf: ^3.11.3
 
+  # Google Play in-app review dialog (playstore flavor only — invoked on
+  # the IAP path; the github flavor never reaches this code at runtime).
+  in_app_review: ^2.0.12
+
   # Donations — Google Play in-app purchase tip tiers (playstore flavor only).
   # Compiled in for every build but only invoked on the IAP path; the github
   # flavor never reaches this code at runtime.

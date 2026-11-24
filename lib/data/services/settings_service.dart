@@ -22,6 +22,7 @@ class SettingsService {
   static const _kHapticsEnabled = 'settings.hapticsEnabled';
   static const _kRitualLastSeenWeekStart = 'ritual.lastSeenWeekStart';
   static const _kNotifLastDone = 'notif.lastDone';
+  static const _kReviewLastAttemptMs = 'review.lastAttemptMs';
 
   ColorTag get colorTag => ColorTag.fromName(_prefs.getString(_kColorTag));
   Future<void> setColorTag(ColorTag tag) =>
@@ -101,4 +102,11 @@ class SettingsService {
   Future<void> setNotifLastDone(String json) =>
       _prefs.setString(_kNotifLastDone, json);
   Future<void> clearNotifLastDone() => _prefs.remove(_kNotifLastDone);
+
+  /// Epoch millis of the last Play in-app review attempt — the persisted
+  /// side of the review service's 30-day cooldown (any attempt counts: the
+  /// dialog outcome is not observable). Null until the first attempt ever.
+  int? get reviewLastAttemptMs => _prefs.getInt(_kReviewLastAttemptMs);
+  Future<void> setReviewLastAttemptMs(int ms) =>
+      _prefs.setInt(_kReviewLastAttemptMs, ms);
 }
