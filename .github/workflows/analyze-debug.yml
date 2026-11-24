@@ -1,0 +1,58 @@
+name: Analyze debug
+
+# TEMPORARY diagnostics: re-runs flutter analyze and surfaces each finding
+# as a check-run annotation, which is readable through the public REST API
+# without repository admin rights (Actions logs require login + admin).
+# Delete this file once the analyzer failure on this branch is diagnosed.
+
+on:
+  push:
+    branches:
+      - "feature/**"
+  workflow_dispatch:
+
+jobs:
+  analyze-debug:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.0
+          cache: true
+
+      - name: Get dependencies
+        run: flutter pub get
+
+      - name: Generate Drift code
+        run: dart run build_runner build --delete-conflicting-outputs
+
+      - name: Analyze
+        run: |
+          set -o pipefail
+          flutter analyze 2>&1 | tee analyze.log
+
+      - name: Emit analyzer diagnostics as annotations
+        if: failure()
+        run: |
+          n=0
+          while IFS= read -r line; do
+            [ -z "$line" ] && continue
+            n=$((n+1))
+            if [ "$n" -gt 30 ]; then break; fi
+            safe=$(printf '%s' "$line" | sed 's/%/%25/g')
+            echo "::error::${safe:0:400}"
+          done < <(grep -E "(error|warning|info) •" analyze.log || true)
+          if [ "$n" -eq 0 ]; then
+            split -b 800 analyze.log /tmp/chunk_ 2>/dev/null || true
+            m=0
+            for f in /tmp/chunk_*; do
+              [ -e "$f" ] || break
+              m=$((m+1))
+              if [ "$m" -gt 10 ]; then break; fi
+              safe=$(tr '\n\r' '  ' < "$f" | sed 's/%/%25/g')
+              echo "::error::${safe:0:900}"
+            done
+          fi
